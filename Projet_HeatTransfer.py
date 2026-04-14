@@ -7,6 +7,7 @@
 #   - git status
 #   - git add .
 #   - git commit -m"..."        avec ... étant la description de ce que vous avez modifié dans le code 
+#   - got push origin main
 
 
 import numpy as np
