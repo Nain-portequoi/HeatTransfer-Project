@@ -13,5 +13,3 @@ k = 1,5
 
 #Pas
 p = 20
-
-print("DADAA")
