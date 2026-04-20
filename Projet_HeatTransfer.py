@@ -45,8 +45,9 @@ precisionResultat = 0
 precisionAAtteindre = 10e-2
 #endregion
 
-#region Compteur d'itération
-cpt = 0
+#region Compteurs
+cptIteration = 0
+cptAlveoles = 0
 #endregion
 
 temperatureTempon = 0
@@ -56,13 +57,13 @@ T=np.zeros((n, m))
 for i in range(n):
     T[i][0] = 1
     T[i][m - 1] = 1
-    print("Côté gauche et droit")
 
 
 while precisionResultat >= precisionAAtteindre :
     precisionResultat = 0
-    print("Itirération : ", cpt)
-    cpt += 1
+    print("Itirération : ", cptIteration)
+    cptIteration += 1
+    #region Test si l'on calcule les températures sur la ligne
 
     for i in range(n):
         for j in range(m):
@@ -100,7 +101,7 @@ while precisionResultat >= precisionAAtteindre :
                 elif j == lgIsolant :
                     T[i][j] = 1
                 elif j < lgEnduit :
-                    if i % p == 0 and j == eS / 2 :             # Position sur les sources de chaleur (à vérifier si i ≠ 1cm)
+                    if i % p == 0 and j == eS / 2 :             # Position sur les sources de chaleur (à vérifier si incrément de i ≠ 1cm) => Boucle ?
                         T[i][j] = 1
                     else :
                         T[i][j] = 1
@@ -115,6 +116,10 @@ while precisionResultat >= precisionAAtteindre :
                         T[i][j] = 1
                     elif j == lgMurInterieurApresAir :
                         T[i][j] = 1
+                elif j == lgMurInterieur :
+                    if i == cptAlveoles + k :                      # Problème si incrément de i = 1cm => Boucle ?
+                        cptAlveoles += 1 + k
+
                     
 
             #endregion
@@ -141,6 +146,63 @@ while precisionResultat >= precisionAAtteindre :
                 elif j == lgMurInterieur :                  # Coin D
                     T[i][j] = 1
             #endregion
+    #endregion
+
+    #region Test si l'on calcule les températures par bloc 
+    for i in range(n) :
+        for j in range(m) :
+            temperatureTempon = T[i][j]
+            if j > 0 :
+                if j < lgMurExterieur :
+                    if i == 0 :
+                        T[i][j] = 1
+                    elif i == n - 1 :
+                        T[i][j] = 1
+                    else :
+                        T[i][j] = 1
+                elif j == lgMurExterieur :
+                    if i == 0 :
+                        T[i][j] = 1
+                    elif i == n - 1 :
+                        T[i][j] = 1
+                    else :
+                        T[i][j] = 1
+    for i in range(n) :
+        for j in range(m) :
+            temperatureTempon = T[i][j]
+            if j < lgIsolant :
+                if i == 0 :
+                    T[i][j] = 1
+                elif i == n - 1 :
+                    T[i][j] = 1
+                else :
+                        T[i][j] = 1
+            elif j == lgIsolant :
+                if i == 0 :
+                    T[i][j] = 1
+                elif i == n - 1 :
+                    T[i][j] = 1
+                else :
+                    [i][j] = 1
+    for i in range(n) :
+        for j in range(m) :
+            temperatureTempon = T[i][j]
+            if j < lgEnduit :
+                if j == eS / 2 - 1 and (i - 1) % p == 0 and i != 0 and i != n - 1:
+                    T[i][j] = 1
+                elif i == 0 :
+                    T[i][j] = 1
+                elif i == n - 1 :                               
+                    T[i][j] = 1
+                else :
+                    [i][j] = 1
+
+
+        # Pour trouver i il faut utiliser le plus grand commun diviseur entre le pas et la distance avec les alvéoles
+
+    #endregion
+
+
     precisionResultat -= 5 * 10e-2
     print("\tPrecision : ", precisionResultat)
             
