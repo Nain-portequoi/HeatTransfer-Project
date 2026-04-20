@@ -22,6 +22,11 @@ lM = 300
 hM = 200
 hB = 10
 k = 1,5
+
+lgMurExterieur = eM - 1
+lgIsolant = lgMurExterieur + eI - 1
+lgEnduit = lgIsolant + eS - 1
+lgMurInterieur = lgEnduit + eB - 1
 #endregion
 
 #region Dimension de la matrice
@@ -48,7 +53,7 @@ T=np.zeros((n, m))
 
 for i in range(n):
     T[i][0] = 1
-    T[i][m] = 1
+    T[i][m - 1] = 1
     print("Côté gauche et droit")
 
 
@@ -60,15 +65,69 @@ while precisionResultat >= precisionAAtteindre :
     for i in range(n):
         for j in range(m):
             temperatureTempon = T[i][j]
-            if i == 0 and j == 0 :                   # Coin B
-                T[i][j] = 1
-            if i == 0  and j < eM :                  # Plaque du haut mur extérieur : Flux nul
-                T[i][j] = 1
-            elif i == n :                # Plaque du bas : Flux nul
-                T[i][j] = 1
-            elif j < eM :
-                T[i][j] = 1              # Mur extérieur
-            elif 
+            #region Plaque du haut :
+            if i == 0 :
+                if j == 0 :                                 # Coin B
+                    T[i][j] = 1
+                elif j < lgMurExterieur :                   # Plaque du haut mur extérieur
+                    T[i][j] = 1
+                elif j == lgMurExterieur :                  # Coin haut |e| mur extérieur et isolant
+                    T[i][j] = 1
+                elif j < lgIsolant :                        # Plaque du haut isolant
+                    T[i][j] = 1
+                elif j == lgIsolant :                       # Coin haut |e| isolant et enduit
+                    T[i][j] = 1
+                elif j < lgEnduit :                         # Plaque du haut enduit
+                    T[i][j] = 1
+                elif j == lgEnduit :                        # Coin haut |e| enduit et mur inétieur
+                    T[i][j] = 1
+                elif j < lgMurInterieur :                   # Plaque du haut mur intérieur
+                    T[i][j] = 1
+                elif j == lgMurInterieur :                  # Coin C
+                    T[i][j] = 1
+            #endregion
+
+            #region Centre
+            elif i < n and j > 0 :
+                if j < lgMurExterieur :
+                    T[i][j] = 1 
+                elif j == lgMurExterieur : 
+                    T[i][j] = 1
+                elif j < lgIsolant :
+                    T[i][j] = 1
+                elif j < lgEnduit :
+                    if i % p == 0 :             # Position sur les sources de chaleur (à vérifier si i ≠ 1cm)
+                        T[i][j] = 1
+                    else :
+                        T[i][j] = 1
+                    
+
+            #endregion
+
+
+            #region Plaque du bas :
+            if i == n :
+                if j == 0 :                                 # Coin A
+                    T[i][j] = 1
+                elif j < lgMurExterieur :                   # Plaque du bas mur extérieur
+                    T[i][j] = 1
+                elif j == lgMurExterieur :                  # Coin bas |e| mur extérieur et isolant
+                    T[i][j] = 1
+                elif j < lgIsolant :                        # Plaque du bas isolant
+                    T[i][j] = 1
+                elif j == lgIsolant :                       # Coin bas |e| isolant et enduit
+                    T[i][j] = 1
+                elif j < lgEnduit :                         # Plaque du bas enduit
+                    T[i][j] = 1
+                elif j == lgEnduit :                        # Coin bas |e| enduit et mur inétieur
+                    T[i][j] = 1
+                elif j < lgMurInterieur :                   # Plaque du bas mur intérieur
+                    T[i][j] = 1
+                elif j == lgMurInterieur :                  # Coin D
+                    T[i][j] = 1
+            #endregion
+    precisionResultat -= 5 * 10e-2
+    print("\tPrecision : ", precisionResultat)
             
                 
 
