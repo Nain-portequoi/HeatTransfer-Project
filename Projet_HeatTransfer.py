@@ -149,56 +149,56 @@ while precisionResultat >= precisionAAtteindre :
     #endregion
 
     #region Test si l'on calcule les températures par bloc 
-    for i in range(n) :
-        for j in range(m) :
-            temperatureTempon = T[i][j]
-            if j > 0 :
-                if j < lgMurExterieur :
-                    if i == 0 :
-                        T[i][j] = 1
-                    elif i == n - 1 :
-                        T[i][j] = 1
-                    else :
-                        T[i][j] = 1
-                elif j == lgMurExterieur :
-                    if i == 0 :
-                        T[i][j] = 1
-                    elif i == n - 1 :
-                        T[i][j] = 1
-                    else :
-                        T[i][j] = 1
-    for i in range(n) :
-        for j in range(m) :
-            temperatureTempon = T[i][j]
-            if j < lgIsolant :
-                if i == 0 :
-                    T[i][j] = 1
-                elif i == n - 1 :
-                    T[i][j] = 1
-                else :
-                        T[i][j] = 1
-            elif j == lgIsolant :
-                if i == 0 :
-                    T[i][j] = 1
-                elif i == n - 1 :
-                    T[i][j] = 1
-                else :
-                    [i][j] = 1
-    for i in range(n) :
-        for j in range(m) :
-            temperatureTempon = T[i][j]
-            if j < lgEnduit :
-                if j == eS / 2 - 1 and (i - 1) % p == 0 and i != 0 and i != n - 1:
-                    T[i][j] = 1
-                elif i == 0 :
-                    T[i][j] = 1
-                elif i == n - 1 :                               
-                    T[i][j] = 1
-                else :
-                    [i][j] = 1
+    # for i in range(n) :
+    #     for j in range(m) :
+    #         temperatureTempon = T[i][j]
+    #         if j > 0 :
+    #             if j < lgMurExterieur :
+    #                 if i == 0 :
+    #                     T[i][j] = 1
+    #                 elif i == n - 1 :
+    #                     T[i][j] = 1
+    #                 else :
+    #                     T[i][j] = 1
+    #             elif j == lgMurExterieur :
+    #                 if i == 0 :
+    #                     T[i][j] = 1
+    #                 elif i == n - 1 :
+    #                     T[i][j] = 1
+    #                 else :
+    #                     T[i][j] = 1
+    # for i in range(n) :
+    #     for j in range(m) :
+    #         temperatureTempon = T[i][j]
+    #         if j < lgIsolant :
+    #             if i == 0 :
+    #                 T[i][j] = 1
+    #             elif i == n - 1 :
+    #                 T[i][j] = 1
+    #             else :
+    #                     T[i][j] = 1
+    #         elif j == lgIsolant :
+    #             if i == 0 :
+    #                 T[i][j] = 1
+    #             elif i == n - 1 :
+    #                 T[i][j] = 1
+    #             else :
+    #                 [i][j] = 1
+    # for i in range(n) :
+    #     for j in range(m) :
+    #         temperatureTempon = T[i][j]
+    #         if j < lgEnduit :
+    #             if j == eS / 2 - 1 and (i - 1) % p == 0 and i != 0 and i != n - 1:
+    #                 T[i][j] = 1
+    #             elif i == 0 :
+    #                 T[i][j] = 1
+    #             elif i == n - 1 :                               
+    #                 T[i][j] = 1
+    #             else :
+    #                 [i][j] = 1
 
 
-        # Pour trouver i il faut utiliser le plus grand commun diviseur entre le pas et la distance avec les alvéoles
+    #     # Pour trouver i il faut utiliser le plus grand commun diviseur entre le pas et la distance avec les alvéoles
 
     #endregion
 
