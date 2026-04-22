@@ -14,21 +14,21 @@ import numpy as np
 import matplotlib.pyplot as pltt
 
 #region Dimension de la surface
-eM = 20 # cm
-eI = 12
-eS = 3
-eB = 5
-lM = 300
-hM = 200
-hB = 10
-k = 1,5
+eM = 20.0 # cm
+eI = 12.0
+eS = 3.0
+eB = 5.0
+lM = 300.0
+hM = 200.0
+hB = 10.0
+k = 1,5.0
 
-lgMurExterieur = eM - 1
-lgIsolant = lgMurExterieur + eI - 1
-lgEnduit = lgIsolant + eS - 1
-lgMurInterieur = lgEnduit + eB - 1
-lgMurInterieurAvantAir = tuple(lgEnduit) + k - 1
-lgMurInterieurApresAir = tuple(lgMurInterieur) - k - 1
+lgMurExterieur = eM - 0.5
+lgIsolant = lgMurExterieur + eI - 0.5
+lgEnduit = lgIsolant + eS - 0.5
+lgMurInterieur = lgEnduit + eB - 0.5
+lgMurInterieurAvantAir = lgEnduit + k - 0.5
+lgMurInterieurApresAir = lgMurInterieur - k - 0.5
 #endregion
 
 #region Dimension de la matrice
@@ -47,7 +47,8 @@ precisionAAtteindre = 10e-2
 
 #region Compteurs
 cptIteration = 0
-cptAlveoles = 0
+cptAlveolesHaut = 0.0
+cptAlveolesBas = 0.0
 #endregion
 
 temperatureTempon = 0
@@ -64,8 +65,8 @@ while precisionResultat >= precisionAAtteindre :
     print("Itirération : ", cptIteration)
     cptIteration += 1
     #region Test si l'on calcule les températures sur la ligne
-
-    for i in range(n):
+    i = 0.0
+    while i < n :
         for j in range(m):
             temperatureTempon = T[i][j]
             #region Plaque du haut :
@@ -91,7 +92,7 @@ while precisionResultat >= precisionAAtteindre :
             #endregion
 
             #region Centre
-            elif i < n and j > 0 :              # |e| la plaque du haut et du bas et après la plaque de gauche
+            elif i < n - 0.5 and j > 0 :              # |e| la plaque du haut et du bas et après la plaque de gauche
                 if j < lgMurExterieur :
                     T[i][j] = 1 
                 elif j == lgMurExterieur : 
@@ -101,23 +102,43 @@ while precisionResultat >= precisionAAtteindre :
                 elif j == lgIsolant :
                     T[i][j] = 1
                 elif j < lgEnduit :
-                    if i % p == 0 and j == eS / 2 :             # Position sur les sources de chaleur (à vérifier si incrément de i ≠ 1cm) => Boucle ?
+                    if i % p == 0 and j == eS / 2 :             # Position sur les sources de chaleur 
                         T[i][j] = 1
                     else :
                         T[i][j] = 1
                 elif j == lgEnduit :
-                    T[i][j] = 1
+                    if i % hB == 0 :
+                        T[i][j] = 1
+                    else :
+                        T[i][j] = 1
                 elif j < lgMurInterieur :
                     if j < lgMurInterieurAvantAir :
                         T[i][j] = 1
                     elif j == lgMurInterieurAvantAir :
-                        T[i][j] = 1
+                        if i == cptAlveolesHaut + k :
+                            T[i][j] = 1
+                        elif i < cptAlveolesBas + hB - k :
+                            T[i][j] = 1
+                        else :
+                            T[i][j] = 1
                     elif j < lgMurInterieurApresAir :
-                        T[i][j] = 1
+                        if i == cptAlveolesHaut + k :
+                            T[i][j] = 1
+                        elif i < cptAlveolesBas + hB - k :
+                            T[i][j] = 1
+                        else :
+                            T[i][j] = 1
                     elif j == lgMurInterieurApresAir :
-                        T[i][j] = 1
+                        if i == cptAlveolesHaut + k :
+                            cptAlveolesHaut += hB
+                            T[i][j] = 1
+                        elif i < cptAlveolesBas + hB - k :
+                            T[i][j] = 1
+                        else :
+                            cptAlveolesBas += hB
+                            T[i][j] = 1
                 elif j == lgMurInterieur :
-                    if i == cptAlveoles + k :                      # Problème si incrément de i = 1cm => Boucle ?
+                    if i == cptAlveoles + k :                      
                         cptAlveoles += 1 + k
 
                     
@@ -126,7 +147,7 @@ while precisionResultat >= precisionAAtteindre :
 
 
             #region Plaque du bas :
-            if i == n :
+            if i == n - 1:
                 if j == 0 :                                 # Coin A
                     T[i][j] = 1
                 elif j < lgMurExterieur :                   # Plaque du bas mur extérieur
@@ -146,8 +167,15 @@ while precisionResultat >= precisionAAtteindre :
                 elif j == lgMurInterieur :                  # Coin D
                     T[i][j] = 1
             #endregion
+        i += 0,5
     #endregion
 
+
+
+    precisionResultat -= 5 * 10e-2
+    print("\tPrecision : ", precisionResultat)
+            
+                
     #region Test si l'on calcule les températures par bloc 
     # for i in range(n) :
     #     for j in range(m) :
@@ -201,12 +229,6 @@ while precisionResultat >= precisionAAtteindre :
     #     # Pour trouver i il faut utiliser le plus grand commun diviseur entre le pas et la distance avec les alvéoles
 
     #endregion
-
-
-    precisionResultat -= 5 * 10e-2
-    print("\tPrecision : ", precisionResultat)
-            
-                
 
 
 
