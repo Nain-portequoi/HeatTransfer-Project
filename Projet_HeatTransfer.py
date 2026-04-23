@@ -138,8 +138,10 @@ while precisionResultat >= precisionAAtteindre :
                             cptAlveolesBas += hB
                             T[i][j] = 1
                 elif j == lgMurInterieur :
-                    if i == cptAlveoles + k :                      
-                        cptAlveoles += 1 + k
+                    if i % hB == 0 :
+                        T[i][j] = 1
+                    else :
+                        T[i][j] = 1
 
                     
 
