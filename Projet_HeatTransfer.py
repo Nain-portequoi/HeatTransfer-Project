@@ -51,7 +51,7 @@ cptAlveolesHaut = 0.0
 cptAlveolesBas = 0.0
 #endregion
 
-temperatureTempon = 0
+temperatureTempon = 10
 
 T=np.zeros((n, m))
 
