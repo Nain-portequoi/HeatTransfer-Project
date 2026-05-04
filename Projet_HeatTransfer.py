@@ -16,6 +16,9 @@ import matplotlib.pyplot as plt
 #region Pas de la matrice
 pasMatriceX = 0.5
 pasMatriceY = 0.5
+
+pasTemponMatriceX = pasMatriceX
+pasTemponMatriceY = pasMatriceY
 #endregion
 
 #region Dimension de la surface
@@ -46,6 +49,8 @@ lgEnduit = int (lgEnduit_cm / pasMatriceX)
 lgMurInterieur = int (lgMurInterieur_cm / pasMatriceX)
 lgMurInterieurAvantAir = int (lgMurInterieurAvantAir_cm / pasMatriceX)
 lgMurInterieurApresAir = int (lgMurInterieurApresAir_cm / pasMatriceX)
+
+j_source = lgIsolant + eS_mid
 #endregion
 
 #region Dimension de la matrice
@@ -65,95 +70,245 @@ precisionAAtteindre = 1e-2
 
 #region Compteurs
 cptIteration = 0
-cptAlveolesHaut = 0
-cptAlveolesBas = 0
+#endregion
+
+#region Lambda
+lbdM = 1.5
+lbdI = 0.035
+lbdE = 1.1
+lbdB = 0.85
+lbdA = 0.026
+#endregion
+
+#region Température
+TempE = 10
+TempI = 22
+#endregion
+
+#region Coefficent de convection et Phi
+hE = 25
+hI = 7
+phi = 100
 #endregion
 
 temperatureTempon = 10
 
-T=np.zeros((n, m))
+#region Pas variable
 
+# Paramètres du raffinement
+nb_fin  = 8    # nœuds dans la zone raffinée
+nb_gros = 4    # nœuds dans la zone loin (entre deux singularités)
+
+# ===================== AXE Y =====================
+singularites_y = set()
+
+# Bords du mur
+singularites_y.add(0.0)
+singularites_y.add(hM)
+
+# Sources (tous les pasSources_cm)
+for k in range(1, int(hM / pasSources_cm)):
+    singularites_y.add(float(k * pasSources_cm))
+
+# Interfaces alvéoles : bord bas et haut de chaque cavité d'air
+for k in range(int(hM / hB_cm)):
+    y_alv = k * hB_cm
+    singularites_y.add(float(y_alv + k_cm))
+    singularites_y.add(float(y_alv + hB_cm - k_cm))
+
+singularites_y = sorted(singularites_y)
+
+y_parts = []
+for idx, y_sing in enumerate(singularites_y):
+    if idx == 0:
+        gauche = y_sing
+    else:
+        gauche = (singularites_y[idx-1] + y_sing) / 2
+
+    if idx == len(singularites_y) - 1:
+        droite = y_sing
+    else:
+        droite = (y_sing + singularites_y[idx+1]) / 2
+
+    if gauche < y_sing:
+        dist_g = y_sing - gauche
+        y_parts.append(gauche + np.geomspace(0.001 * dist_g, dist_g, nb_fin))
+
+    y_parts.append([y_sing])
+
+    if y_sing < droite:
+        dist_d = droite - y_sing
+        y_parts.append(y_sing + dist_d - np.geomspace(0.001 * dist_d, dist_d, nb_fin)[::-1])
+
+y = np.unique(np.concatenate(y_parts))
+n = len(y)
+
+# ===================== AXE X =====================
+singularites_x = set()
+
+singularites_x.add(0.0)
+singularites_x.add(float(eM))
+singularites_x.add(float(eM + eI))
+singularites_x.add(float(eM + eI + eS_cm / 2))       # source n_s
+singularites_x.add(float(eM + eI + eS_cm))
+singularites_x.add(float(eM + eI + eS_cm + k_cm))            # bord gauche cavité
+singularites_x.add(float(eM + eI + eS_cm + eB - k_cm))       # bord droit cavité
+singularites_x.add(float(eM + eI + eS_cm + eB))
+
+singularites_x = sorted(singularites_x)
+
+x_parts = []
+for idx, x_sing in enumerate(singularites_x):
+    if idx == 0:
+        gauche = x_sing
+    else:
+        gauche = (singularites_x[idx-1] + x_sing) / 2
+
+    if idx == len(singularites_x) - 1:
+        droite = x_sing
+    else:
+        droite = (x_sing + singularites_x[idx+1]) / 2
+
+    if gauche < x_sing:
+        dist_g = x_sing - gauche
+        x_parts.append(gauche + np.geomspace(0.001 * dist_g, dist_g, nb_fin))
+
+    x_parts.append([x_sing])
+
+    if x_sing < droite:
+        dist_d = droite - x_sing
+        x_parts.append(x_sing + dist_d - np.geomspace(0.001 * dist_d, dist_d, nb_fin)[::-1])
+
+x = np.unique(np.concatenate(x_parts))
+m = len(x)
+
+# ===================== INDICES DES SINGULARITÉS =====================
+j_bord_ext   = np.searchsorted(x, 0.0)
+j_mur_ext    = np.searchsorted(x, eM)
+j_isolant    = np.searchsorted(x, eM + eI)
+j_source     = np.searchsorted(x, eM + eI + eS_cm / 2)
+j_enduit     = np.searchsorted(x, eM + eI + eS_cm)
+j_air_gauche = np.searchsorted(x, eM + eI + eS_cm + k_cm)
+j_air_droite = np.searchsorted(x, eM + eI + eS_cm + eB - k_cm)
+j_mur_int    = np.searchsorted(x, eM + eI + eS_cm + eB)
+
+i_bord_haut  = np.searchsorted(y, 0.0)
+i_bord_bas   = np.searchsorted(y, hM)
+
+# Sources en Y
+indices_sources_y = [np.searchsorted(y, float(k * pasSources_cm)) 
+                     for k in range(1, int(hM / pasSources_cm))]
+
+# Interfaces alvéoles en Y
+indices_alv_bas  = [np.searchsorted(y, float(k * hB_cm + k_cm)) 
+                    for k in range(int(hM / hB_cm))]
+indices_alv_haut = [np.searchsorted(y, float(k * hB_cm + hB_cm - k_cm)) 
+                    for k in range(int(hM / hB_cm))]
+
+#endregion
+
+# Réinitialisation de la matrice avec les nouvelles dimensions
+T = np.zeros((n, m))
 
 while precisionResultat >= precisionAAtteindre :
     precisionResultat = 0
-    print("Itirération : ", cptIteration)
+    print("Itération : ", cptIteration)
     cptIteration += 1
-    cptAlveolesBas = 0
-    cptAlveolesHaut = 0
+    
     #region Test si l'on calcule les températures sur la ligne
     for i in range(n) :
+        dans_cavite = any(
+        indices_alv_bas[k] <= i <= indices_alv_haut[k]
+        for k in range(len(indices_alv_bas))
+        )
+        idx_alv = next(
+        (k for k in range(len(indices_alv_bas)) if indices_alv_bas[k] <= i <= indices_alv_haut[k]), None
+        )
         for j in range(m):
+            #region Temperature Tempon
             temperatureTempon = T[i][j]
+            #endregion
+
+            #region Gestion des pas
+            dx_avant = x[j] - x[j-1] if j > 0 else x[1] - x[0]
+            dx_apres = x[j+1] - x[j] if j < m-1 else x[-1] - x[-2]
+            dy_avant = y[i] - y[i-1] if i > 0 else y[1] - y[0]
+            dy_apres = y[i+1] - y[i] if i < n-1 else y[-1] - y[-2]
+            #endregion
+
+            #region C
+
+            #endregion
             #region Plaque du haut :
             if i == 0 :
                 if j == 0 :                                 # Coin B
                     T[i][j] = 1
-                elif j < lgMurExterieur :                   # Plaque du haut mur extérieur
+                elif j < j_mur_ext :                   # Plaque du haut mur extérieur
                     T[i][j] = 1
-                elif j == lgMurExterieur :                  # Coin haut |e| mur extérieur et isolant
+                elif j == j_mur_ext :                  # Coin haut |e| mur extérieur et isolant
                     T[i][j] = 1
-                elif j < lgIsolant :                        # Plaque du haut isolant
+                elif j < j_isolant :                        # Plaque du haut isolant
                     T[i][j] = 1
-                elif j == lgIsolant :                       # Coin haut |e| isolant et enduit
+                elif j == j_isolant :                       # Coin haut |e| isolant et enduit
                     T[i][j] = 1
-                elif j < lgEnduit :                         # Plaque du haut enduit
+                elif j < j_enduit :                         # Plaque du haut enduit
                     T[i][j] = 1
-                elif j == lgEnduit :                        # Coin haut |e| enduit et mur inétieur
+                elif j == j_enduit :                        # Coin haut |e| enduit et mur inétieur
                     T[i][j] = 1
-                elif j < lgMurInterieur :                   # Plaque du haut mur intérieur
+                elif j < j_mur_int :                   # Plaque du haut mur intérieur
                     T[i][j] = 1
-                elif j == lgMurInterieur :                  # Coin C
+                elif j == j_mur_int :                  # Coin C
                     T[i][j] = 1
             #endregion
 
             #region Centre
-            elif i < n - 1 and j > 0 :              # |e| la plaque du haut et du bas et après la plaque de gauche
-                if j < lgMurExterieur :
+            elif i < n - 1 :              # |e| la plaque du haut et du bas et après la plaque de gauche
+                if j == 0 :
+                    T[i][j] = 1
+                elif j < j_mur_ext :
                     T[i][j] = 1 
-                elif j == lgMurExterieur : 
+                elif j == j_mur_ext : 
                     T[i][j] = 1
-                elif j < lgIsolant :
+                elif j < j_isolant :
                     T[i][j] = 1
-                elif j == lgIsolant :
+                elif j == j_isolant :
                     T[i][j] = 1
-                elif j < lgEnduit :
-                    if i % pasSources == 0 and j == eS_mid :             # Position sur les sources de chaleur 
+                elif j < j_enduit :
+                    if i in indices_sources_y and j == j_source :             # Position sur les sources de chaleur 
                         T[i][j] = 1
                     else :
                         T[i][j] = 1
-                elif j == lgEnduit :
+                elif j == j_enduit :
                     if i % hB == 0 :
                         T[i][j] = 1
                     else :
                         T[i][j] = 1
-                elif j < lgMurInterieur :
-                    if j < lgMurInterieurAvantAir :
+                elif j < j_mur_int :
+                    if j < j_air_gauche :
                         T[i][j] = 1
-                    elif j == lgMurInterieurAvantAir :
-                        if i == cptAlveolesHaut + k_y :
+                    elif j == j_air_gauche :
+                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :
                             T[i][j] = 1
-                        elif i < cptAlveolesBas + hB - k_y:
-                            T[i][j] = 1
-                        else :
-                            T[i][j] = 1
-                    elif j < lgMurInterieurApresAir :
-                        if i == cptAlveolesHaut + k_y :
-                            T[i][j] = 1
-                        elif i < cptAlveolesBas + hB - k_y :
+                        elif dans_cavite:
                             T[i][j] = 1
                         else :
                             T[i][j] = 1
-                    elif j == lgMurInterieurApresAir :
-                        if i == cptAlveolesHaut + k_y :
-                            cptAlveolesHaut += hB
+                    elif j < j_air_droite :
+                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :
                             T[i][j] = 1
-                        elif i < cptAlveolesBas + hB - k_y :
+                        elif dans_cavite :
                             T[i][j] = 1
                         else :
-                            cptAlveolesBas += hB
                             T[i][j] = 1
-                elif j == lgMurInterieur :
-                    if i % hB == 0 :
+                    elif j == j_air_droite :
+                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :   # bord bas cavité
+                            T[i][j] = 1
+                        elif dans_cavite :                                             # intérieur cavité
+                            T[i][j] = 1
+                        else :                                                         # hors cavité
+                            T[i][j] = 1
+                elif j == j_mur_int :
+                    if i in indices_alv_bas or i in indices_alv_haut :
                         T[i][j] = 1
                     else :
                         T[i][j] = 1
@@ -164,87 +319,34 @@ while precisionResultat >= precisionAAtteindre :
 
 
             #region Plaque du bas :
-            if i == n - 1:
+            elif i == n - 1:
                 if j == 0 :                                 # Coin A
                     T[i][j] = 1
-                elif j < lgMurExterieur :                   # Plaque du bas mur extérieur
+                elif j < j_mur_ext :                   # Plaque du bas mur extérieur
                     T[i][j] = 1
-                elif j == lgMurExterieur :                  # Coin bas |e| mur extérieur et isolant
+                elif j == j_mur_ext :                  # Coin bas |e| mur extérieur et isolant
                     T[i][j] = 1
-                elif j < lgIsolant :                        # Plaque du bas isolant
+                elif j < j_isolant :                        # Plaque du bas isolant
                     T[i][j] = 1
-                elif j == lgIsolant :                       # Coin bas |e| isolant et enduit
+                elif j == j_isolant :                       # Coin bas |e| isolant et enduit
                     T[i][j] = 1
-                elif j < lgEnduit :                         # Plaque du bas enduit
+                elif j < j_enduit :                         # Plaque du bas enduit
                     T[i][j] = 1
-                elif j == lgEnduit :                        # Coin bas |e| enduit et mur inétieur
+                elif j == j_enduit :                        # Coin bas |e| enduit et mur inétieur
                     T[i][j] = 1
-                elif j < lgMurInterieur :                   # Plaque du bas mur intérieur
+                elif j < j_mur_int :                   # Plaque du bas mur intérieur
                     T[i][j] = 1
-                elif j == lgMurInterieur :                  # Coin D
+                elif j == j_mur_int :                  # Coin D
                     T[i][j] = 1
+            precisionResultat = max(precisionResultat, abs(T[i][j] - temperatureTempon))
             #endregion
     #endregion
 
 
 
-            precisionResultat = max(precisionResultat, abs(T[i][j] - temperatureTempon))
+            
     print("\tPrecision : ", precisionResultat)
             
-                
-    #region Test si l'on calcule les températures par bloc 
-    # for i in range(n) :
-    #     for j in range(m) :
-    #         temperatureTempon = T[i][j]
-    #         if j > 0 :
-    #             if j < lgMurExterieur :
-    #                 if i == 0 :
-    #                     T[i][j] = 1
-    #                 elif i == n - 1 :
-    #                     T[i][j] = 1
-    #                 else :
-    #                     T[i][j] = 1
-    #             elif j == lgMurExterieur :
-    #                 if i == 0 :
-    #                     T[i][j] = 1
-    #                 elif i == n - 1 :
-    #                     T[i][j] = 1
-    #                 else :
-    #                     T[i][j] = 1
-    # for i in range(n) :
-    #     for j in range(m) :
-    #         temperatureTempon = T[i][j]
-    #         if j < lgIsolant :
-    #             if i == 0 :
-    #                 T[i][j] = 1
-    #             elif i == n - 1 :
-    #                 T[i][j] = 1
-    #             else :
-    #                     T[i][j] = 1
-    #         elif j == lgIsolant :
-    #             if i == 0 :
-    #                 T[i][j] = 1
-    #             elif i == n - 1 :
-    #                 T[i][j] = 1
-    #             else :
-    #                 [i][j] = 1
-    # for i in range(n) :
-    #     for j in range(m) :
-    #         temperatureTempon = T[i][j]
-    #         if j < lgEnduit :
-    #             if j == eS / 2 - 1 and (i - 1) % p == 0 and i != 0 and i != n - 1:
-    #                 T[i][j] = 1
-    #             elif i == 0 :
-    #                 T[i][j] = 1
-    #             elif i == n - 1 :                               
-    #                 T[i][j] = 1
-    #             else :
-    #                 [i][j] = 1
-
-
-    #     # Pour trouver i il faut utiliser le plus grand commun diviseur entre le pas et la distance avec les alvéoles
-
-    #endregion
 
 # Calcul du flux (gradient de température)
 dT_dy, dT_dx = np.gradient(T, pasMatriceY, pasMatriceX)
@@ -260,7 +362,7 @@ im = ax1.imshow(
     T,
     cmap='hot',
     origin='lower',
-    extent=[0, eM + eI + eS_cm + eB, 0, hM],
+    extent=[x[0], x[-1], y[0], y[-1]],
     aspect='auto'
 )
 plt.colorbar(im, ax=ax1, label='Température (°C)')
@@ -272,13 +374,13 @@ ax1.set_ylabel('Hauteur (cm)')
 # Sous-échantillonnage pour ne pas surcharger
 pas_fleche = max(1, n // 20)  # ~20 flèches en vertical max
 
-i_idx = np.arange(0, n, pas_fleche)
-j_idx = np.arange(0, m, pas_fleche)
-J, I = np.meshgrid(j_idx, i_idx)  # grille des indices sous-échantillonnés
+pas_fleche_i = max(1, n // 20)   # ~20 flèches en Y
+pas_fleche_j = max(1, m // 20)   # ~20 flèches en X
 
-# Positions physiques
-x_pos = J * pasMatriceX
-y_pos = I * pasMatriceY
+for I in range(0, n-1, pas_fleche_i):
+    for J in range(0, m-1, pas_fleche_j):
+        x_pos = x[J]
+        y_pos = y[I]
 
 # Composantes du flux sous-échantillonnées
 fx = flux_x[I, J]
@@ -301,6 +403,5 @@ ax2.set_aspect('equal')
 
 plt.tight_layout()
 plt.show()
-
 
 print("Test")
