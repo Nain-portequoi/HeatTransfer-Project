@@ -246,8 +246,8 @@ while precisionResultat >= precisionAAtteindre :
             # C Mur extérieur et Isolant
             cMI_g = lbdM * (dy_apres + dy_avant)/(2*dx_avant)
             cMI_d = lbdI * (dy_apres + dy_avant)/(2*dx_apres)
-            cMI_b = (lbdM * dx_avant + lbdI * dx_apres) / (2 * dy_avant)
-            cMI_h = (lbdM * dx_avant + lbdI * dx_apres) / (2 * dy_apres)
+            cMI_b = (lbdM * dx_avant + lbdI * dx_apres) / (2 * dy_apres)
+            cMI_h = (lbdM * dx_avant + lbdI * dx_apres) / (2 * dy_avant)
 
             # C Isolant et Enduit
             cIE_g = lbdI * (dy_apres + dy_avant)/(2*dx_avant)
@@ -261,11 +261,14 @@ while precisionResultat >= precisionAAtteindre :
             cEB_b = (lbdE * dx_avant + lbdB * dx_apres) / (2 * dy_avant)
             cEB_h = (lbdE * dx_avant + lbdB * dx_apres) / (2 * dy_apres)
 
-            # C Mur intérieur et Air
+            # C Mur intérieur et Air selon X
             cBA_g = lbdB * (dy_apres + dy_avant)/(2*dx_avant)
             cBA_d = lbdA * (dy_apres + dy_avant)/(2*dx_apres)
             cBA_b = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_avant)
             cBA_h = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_apres)
+
+            # C Mur intérieur et Air selon Y
+            #cBAy_g = (lbdB * dy_avant + lbdA * dy_apres)
 
             # C Mur intérieur et Air
             cAB_g = lbdA * (dy_apres + dy_avant)/(2*dx_avant)
@@ -281,44 +284,76 @@ while precisionResultat >= precisionAAtteindre :
 
             #region W
             # Face AB   A régler
-            wE_ab = hE * (dy_apres + dy_avant) / (2 * dx_avant)
+            wE_ab = hE * (dy_apres + dy_avant) / 2
             wD_ab = lbdM * (dy_apres + dy_avant) / (2 * dx_apres)
+            wH_ab = lbdM * dx_apres / (2*dy_avant)
+            wB_ab = lbdM * dx_apres / (2*dy_apres)
 
             # Face CD   A régler
-
-
-            # Face BC
-            # wG_bc = 
+            wI_cd = hI * (dy_apres + dy_avant) / 2
+            wG_cd = lbdB * (dy_apres + dy_avant) / (2 * dx_avant)
+            wH_cd = lbdB * dx_avant / (2*dy_avant)
+            wB_cd = lbdB * dx_avant / (2*dy_apres)
 
 
             #endregion
             
             #region Plaque du haut :
             if i == 0 :
+                # Face BC
+                wG_bc = dy_apres / (2*dx_avant)
+                wD_bc = dy_apres / (2*dx_apres)
                 if j == 0 :                                 # Coin B
-                    T[i][j] = 1
-                elif j < j_mur_ext :                   # Plaque du haut mur extérieur
-                    T[i][j] = 1
-                elif j == j_mur_ext :                  # Coin haut |e| mur extérieur et isolant
-                    T[i][j] = 1
+                    wE_B = hE * dy_apres / 2
+                    wD_B = lbdM * dy_apres / (2*dx_apres)
+                    wB_B = lbdM * dx_apres / (2*dy_apres)
+                    T[i][j] = (wE_B * TempE + wD_B * T[i][j+1] + wB_B * T[i+1][j]) / (wE_B + wD_B + wB_B)
+                elif j < j_mur_ext :                        # Plaque du haut mur extérieur
+                    wG_bc = wG_bc * lbdM
+                    wD_bc = wD_bc * lbdM
+                    wB_bc = lbdM * (dx_apres + dx_avant) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
+                elif j == j_mur_ext :                       # Coin haut |e| mur extérieur et isolant
+                    wG_bc = wG_bc * lbdM
+                    wD_bc = wD_bc * lbdI
+                    wB_bc = (dx_apres * lbdI + dx_avant * lbdM) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
                 elif j < j_isolant :                        # Plaque du haut isolant
-                    T[i][j] = 1
+                    wG_bc = wG_bc * lbdI
+                    wD_bc = wD_bc * lbdI
+                    wB_bc = lbdI * (dx_apres + dx_avant) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
                 elif j == j_isolant :                       # Coin haut |e| isolant et enduit
-                    T[i][j] = 1
+                    wG_bc = wG_bc * lbdI
+                    wD_bc = wD_bc * lbdE
+                    wB_bc = (dx_apres * lbdE + dx_avant * lbdI) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
                 elif j < j_enduit :                         # Plaque du haut enduit
-                    T[i][j] = 1
+                    wG_bc = wG_bc * lbdE
+                    wD_bc = wD_bc * lbdE
+                    wB_bc = lbdE * (dx_apres + dx_avant) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
                 elif j == j_enduit :                        # Coin haut |e| enduit et mur inétieur
-                    T[i][j] = 1
-                elif j < j_mur_int :                   # Plaque du haut mur intérieur
-                    T[i][j] = 1
-                elif j == j_mur_int :                  # Coin C
-                    T[i][j] = 1
+                    wG_bc = wG_bc * lbdE
+                    wD_bc = wD_bc * lbdB
+                    wB_bc = (dx_apres * lbdB + dx_avant * lbdE) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
+                elif j < j_mur_int :                        # Plaque du haut mur intérieur
+                    wG_bc = wG_bc * lbdB
+                    wD_bc = wD_bc * lbdB
+                    wB_bc = lbdB * (dx_apres + dx_avant) / (2*dy_apres)
+                    T[i][j] = (wG_bc * T[i][j-1] + wD_bc * T[i][j+1] + wB_bc * T[i+1][j]) / (wG_bc + wD_bc + wB_bc)
+                elif j == j_mur_int :                       # Coin C
+                    wC_C = hI * dy_apres / 2
+                    wG_C = lbdB * dy_apres / (2*dx_avant)
+                    wB_C = lbdB * dx_avant / (2*dy_apres)
+                    T[i][j] = (wC_C * TempI + wG_C * T[i][j-1] + wB_C * T[i+1][j]) / (wC_C + wG_C + wB_C)
             #endregion
 
             #region Centre
             elif i < n - 1 :              # |e| la plaque du haut et du bas et après la plaque de gauche
                 if j == 0 :
-                    T[i][j] = 1
+                    T[i][j] = (wE_ab * TempE + wD_ab * T[i][j+1] + wH_ab * T[i-1][j] + wB_ab * T[i+1][j]) / (wE_ab + wD_ab + wB_ab + wH_ab)
 
                 elif j < j_mur_ext :
                     T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
@@ -347,6 +382,7 @@ while precisionResultat >= precisionAAtteindre :
 
                     elif j == j_air_gauche :          # interface mur B / air A
                         if idx_alv is not None and i == indices_alv_bas[idx_alv] :
+                            
                             T[i][j] = 1   # ← coin BAS de la cavité (interface B/A + bord bas)
                         elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
                             T[i][j] = 1   # ← coin HAUT de la cavité (interface B/A + bord haut)
@@ -376,31 +412,61 @@ while precisionResultat >= precisionAAtteindre :
                             T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud dans lbdB hors cavité
 
                 elif j == j_mur_int :
-                    T[i][j] = 1
+                    T[i][j] = (wI_cd * TempI + wG_cd * T[i][j-1] + wH_cd * T[i-1][j] + wB_cd * T[i+1][j]) / (wB_cd + wI_cd + wH_cd + wG_cd)
                     
             #endregion
 
 
             #region Plaque du bas :
             elif i == n - 1:
+                # Face AD
+                wG_ad = dy_avant / (2*dx_avant)
+                wD_ad = dy_avant / (2*dx_apres)
                 if j == 0 :                                 # Coin A
-                    T[i][j] = 1
-                elif j < j_mur_ext :                   # Plaque du bas mur extérieur
-                    T[i][j] = 1
-                elif j == j_mur_ext :                  # Coin bas |e| mur extérieur et isolant
-                    T[i][j] = 1
+                    wE_A = hE * dy_avant / 2
+                    wD_A = lbdM * dy_avant / (2*dx_apres)
+                    wH_A = lbdM * dx_apres / (2*dy_avant)
+                    T[i][j] = (wE_A * TempE + wD_A * T[i][j+1] + wH_A * T[i+1][j]) / (wE_A + wD_A + wH_A)
+                elif j < j_mur_ext :                        # Plaque du bas mur extérieur
+                    wG_ad = wG_ad * lbdM
+                    wD_ad = wD_ad * lbdM
+                    wH_ad = lbdM * (dx_apres + dx_avant) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
+                elif j == j_mur_ext :                       # Coin bas |e| mur extérieur et isolant
+                    wG_ad = wG_ad * lbdM
+                    wD_ad = wD_ad * lbdI
+                    wH_ad = (dx_apres * lbdI + dx_avant * lbdM) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
                 elif j < j_isolant :                        # Plaque du bas isolant
-                    T[i][j] = 1
+                    wG_ad = wG_ad * lbdI
+                    wD_ad = wD_ad * lbdI
+                    wH_ad = lbdI * (dx_apres + dx_avant) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
                 elif j == j_isolant :                       # Coin bas |e| isolant et enduit
-                    T[i][j] = 1
+                    wG_ad = wG_ad * lbdI
+                    wD_ad = wD_ad * lbdE
+                    wH_ad = (dx_apres * lbdE + dx_avant * lbdI) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
                 elif j < j_enduit :                         # Plaque du bas enduit
-                    T[i][j] = 1
+                    wG_ad = wG_ad * lbdE
+                    wD_ad = wD_ad * lbdE
+                    wH_ad = lbdE * (dx_apres + dx_avant) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
                 elif j == j_enduit :                        # Coin bas |e| enduit et mur inétieur
-                    T[i][j] = 1
-                elif j < j_mur_int :                   # Plaque du bas mur intérieur
-                    T[i][j] = 1
-                elif j == j_mur_int :                  # Coin D
-                    T[i][j] = 1
+                    wG_ad = wG_ad * lbdE
+                    wD_ad = wD_ad * lbdB
+                    wH_ad = (dx_apres * lbdB + dx_avant * lbdE) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
+                elif j < j_mur_int :                        # Plaque du bas mur intérieur
+                    wG_ad = wG_ad * lbdB
+                    wD_ad = wD_ad * lbdB
+                    wH_ad = lbdB * (dx_apres + dx_avant) / (2*dy_avant)
+                    T[i][j] = (wG_ad * T[i][j-1] + wD_ad * T[i][j+1] + wH_ad * T[i+1][j]) / (wG_ad + wD_ad + wH_ad)
+                elif j == j_mur_int :                       # Coin D
+                    wC_D = hI * dy_avant / 2
+                    wG_D = lbdB * dy_avant / (2*dx_avant)
+                    wH_D = lbdB * dx_avant / (2*dy_avant)
+                    T[i][j] = (wC_D * TempI + wG_D * T[i][j-1] + wH_D * T[i+1][j]) / (wC_D + wG_D + wH_D)
             precisionResultat = max(precisionResultat, abs(T[i][j] - temperatureTempon))
             #endregion
     #endregion
