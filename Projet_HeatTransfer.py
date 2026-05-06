@@ -237,8 +237,62 @@ while precisionResultat >= precisionAAtteindre :
             #endregion
 
             #region C
+            # C Intérieur d'un matériau
+            c_d = 2 / ((dx_apres + dx_avant) * dx_apres)
+            c_g = 2 / ((dx_apres + dx_avant) * dx_avant)
+            c_b = 2 / ((dy_apres + dy_avant) * dy_apres)
+            c_h = 2 / ((dy_apres + dy_avant) * dy_avant)
+
+            # C Mur extérieur et Isolant
+            cMI_g = lbdM * (dy_apres + dy_avant)/(2*dx_avant)
+            cMI_d = lbdI * (dy_apres + dy_avant)/(2*dx_apres)
+            cMI_b = (lbdM * dx_avant + lbdI * dx_apres) / (2 * dy_avant)
+            cMI_h = (lbdM * dx_avant + lbdI * dx_apres) / (2 * dy_apres)
+
+            # C Isolant et Enduit
+            cIE_g = lbdI * (dy_apres + dy_avant)/(2*dx_avant)
+            cIE_d = lbdE * (dy_apres + dy_avant)/(2*dx_apres)
+            cIE_b = (lbdI * dx_avant + lbdE * dx_apres) / (2 * dy_avant)
+            cIE_h = (lbdI * dx_avant + lbdE * dx_apres) / (2 * dy_apres)
+
+            # C Enduit et Mur intérieur
+            cEB_g = lbdE * (dy_apres + dy_avant)/(2*dx_avant)
+            cEB_d = lbdB * (dy_apres + dy_avant)/(2*dx_apres)
+            cEB_b = (lbdE * dx_avant + lbdB * dx_apres) / (2 * dy_avant)
+            cEB_h = (lbdE * dx_avant + lbdB * dx_apres) / (2 * dy_apres)
+
+            # C Mur intérieur et Air
+            cBA_g = lbdB * (dy_apres + dy_avant)/(2*dx_avant)
+            cBA_d = lbdA * (dy_apres + dy_avant)/(2*dx_apres)
+            cBA_b = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_avant)
+            cBA_h = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_apres)
+
+            # C Mur intérieur et Air
+            cAB_g = lbdA * (dy_apres + dy_avant)/(2*dx_avant)
+            cAB_d = lbdB * (dy_apres + dy_avant)/(2*dx_apres)
+            cAB_b = (lbdA * dx_avant + lbdB * dx_apres) / (2 * dy_avant)
+            cAB_h = (lbdA * dx_avant + lbdB * dx_apres) / (2 * dy_apres)
+
+            # C Sources
+            c1 = lbdE * (dy_apres + dy_avant) / 2
+            c2 = lbdE * (dx_apres + dx_avant) / 2
+            q_sources = 200 / 9
+            #endregion
+
+            #region W
+            # Face AB   A régler
+            wE_ab = hE * (dy_apres + dy_avant) / (2 * dx_avant)
+            wD_ab = lbdM * (dy_apres + dy_avant) / (2 * dx_apres)
+
+            # Face CD   A régler
+
+
+            # Face BC
+            # wG_bc = 
+
 
             #endregion
+            
             #region Plaque du haut :
             if i == 0 :
                 if j == 0 :                                 # Coin B
@@ -265,56 +319,65 @@ while precisionResultat >= precisionAAtteindre :
             elif i < n - 1 :              # |e| la plaque du haut et du bas et après la plaque de gauche
                 if j == 0 :
                     T[i][j] = 1
+
                 elif j < j_mur_ext :
-                    T[i][j] = 1 
+                    T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
+
                 elif j == j_mur_ext : 
-                    T[i][j] = 1
+                    T[i][j] = (cMI_g * T[i][j - 1] + cMI_b * T[i+1][j] + cMI_h * T[i-1][j] + cMI_d * T[i][j+1])/(cMI_d + cMI_g + cMI_b + cMI_h)
+
                 elif j < j_isolant :
-                    T[i][j] = 1
+                    T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
+
                 elif j == j_isolant :
-                    T[i][j] = 1
+                    T[i][j] = (cIE_g * T[i][j - 1] + cIE_b * T[i+1][j] + cIE_h * T[i-1][j] + cIE_d * T[i][j+1])/(cIE_d + cIE_g + cIE_b + cIE_h)
+
                 elif j < j_enduit :
                     if i in indices_sources_y and j == j_source :             # Position sur les sources de chaleur 
-                        T[i][j] = 1
-                    else :
-                        T[i][j] = 1
+                        T[i][j] = (c1 * (T[i][j-1] / dx_avant + T[i][j+1] / dx_apres) + c2 * (T[i-1][j] / dy_avant + T[i+1][j] / dy_apres) + q_sources) / (c1 * (1/dx_avant + 1/dx_apres) + c2 * (1/dy_avant + 1/dy_apres))
+                    else : 
+                        T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
+
                 elif j == j_enduit :
-                    if i % hB == 0 :
-                        T[i][j] = 1
-                    else :
-                        T[i][j] = 1
+                    T[i][j] = (cEB_g * T[i][j - 1] + cEB_b * T[i+1][j] + cEB_h * T[i-1][j] + cEB_d * T[i][j+1])/(cEB_d + cEB_g + cEB_b + cEB_h)
+
                 elif j < j_mur_int :
-                    if j < j_air_gauche :
-                        T[i][j] = 1
-                    elif j == j_air_gauche :
+                    if j < j_air_gauche :           # mur intérieur plein gauche
+                        T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
+
+                    elif j == j_air_gauche :          # interface mur B / air A
                         if idx_alv is not None and i == indices_alv_bas[idx_alv] :
-                            T[i][j] = 1
-                        elif dans_cavite:
-                            T[i][j] = 1
-                        else :
-                            T[i][j] = 1
-                    elif j < j_air_droite :
-                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :
-                            T[i][j] = 1
+                            T[i][j] = 1   # ← coin BAS de la cavité (interface B/A + bord bas)
+                        elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
+                            T[i][j] = 1   # ← coin HAUT de la cavité (interface B/A + bord haut)
                         elif dans_cavite :
-                            T[i][j] = 1
+                            T[i][j] = (cBA_g * T[i][j-1] + cBA_b * T[i+1][j] + cBA_h * T[i-1][j] + cBA_d * T[i][j+1]) / (cBA_g + cBA_b + cBA_h + cBA_d) # ← interface B/A pure (plein milieu cavité)
                         else :
-                            T[i][j] = 1
-                    elif j == j_air_droite :
-                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :   # bord bas cavité
-                            T[i][j] = 1
-                        elif dans_cavite :                                             # intérieur cavité
-                            T[i][j] = 1
-                        else :                                                         # hors cavité
-                            T[i][j] = 1
+                            T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud dans lbdB hors cavité
+
+                    elif j < j_air_droite :           # plein air
+                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :
+                            T[i][j] = 1   # ← bord bas cavité (air + bord horizontal)
+                        elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
+                            T[i][j] = 1   # ← bord haut cavité (air + bord horizontal)
+                        elif dans_cavite :
+                            T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud intérieur lbdA pur
+                        else :
+                            T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud dans lbdB (entre deux cavités)
+
+                    elif j == j_air_droite :          # interface air A / mur B
+                        if idx_alv is not None and i == indices_alv_bas[idx_alv] :
+                            T[i][j] = 1   # ← coin BAS (interface A/B + bord bas)
+                        elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
+                            T[i][j] = 1   # ← coin HAUT (interface A/B + bord haut)
+                        elif dans_cavite :
+                            T[i][j] = (cAB_g * T[i][j-1] + cAB_b * T[i+1][j] + cAB_h * T[i-1][j] + cAB_d * T[i][j+1]) / (cAB_g + cAB_b + cAB_h + cAB_d) # ← interface A/B pure
+                        else :
+                            T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud dans lbdB hors cavité
+
                 elif j == j_mur_int :
-                    if i in indices_alv_bas or i in indices_alv_haut :
-                        T[i][j] = 1
-                    else :
-                        T[i][j] = 1
-
+                    T[i][j] = 1
                     
-
             #endregion
 
 
