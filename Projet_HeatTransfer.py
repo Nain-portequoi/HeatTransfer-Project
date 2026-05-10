@@ -92,7 +92,7 @@ phi = 100
 #endregion
 
 temperatureTempon = 10
-TEST_PAS_VARIABLE = True
+TEST_PAS_VARIABLE = False
 if TEST_PAS_VARIABLE :
     #region Pas variable
     # Paramètres du raffinement
@@ -266,27 +266,39 @@ print(f"j_air_gauche  = {j_air_gauche}  → x = {x[j_air_gauche]:.4f} cm")
 print(f"eM+eI+eS/2    = {eM + eI + eS_cm/2:.4f} cm  ← position attendue source")
 
 # ===== CHOIX DU SOLVEUR =====
-USE_THOMAS = True  # False = Gauss-Seidel, True = Thomas (ADI)
-def thomas(a, b, c, y):
-    """Algo de Thomas — résout un système tridiagonal."""
-    n = len(b)
-    gamma = [0.0] * (n + 1)
-    beta  = [0.0] * (n + 1)
-    for i in range(1, n):
-        denom = a[i] * gamma[i] + b[i]
-        gamma[i+1] = -c[i] / denom
-        beta[i+1]  = (y[i] - a[i] * beta[i]) / denom
-    x = [0.0] * n
-    x[-1] = (y[-1] - a[-1] * beta[-1]) / (a[-1] * gamma[-1] + b[-1])
-    for i in range(n-1, 1, -1):
-        x[i-1] = gamma[i] * x[i] + beta[i]
-    return x
+USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas (ADI)
+if USE_THOMAS :
+    a_vec = np.zeros(m)
+    b_vec = np.zeros(m)
+    c_vec = np.zeros(m)
+    y_vec = np.zeros(m)
+    def thomas(a, b, c, y):
+        n = len(b)
+        gamma = np.zeros(n)
+        beta  = np.zeros(n)
+
+        # Initialisation sur le PREMIER nœud (i=0)
+        gamma[0] = -c[0] / b[0]
+        beta[0]  = y[0] / b[0]
+
+        # Descente à partir de i=1
+        for i in range(1, n):
+            denom    = b[i] + a[i] * gamma[i-1]
+            gamma[i] = -c[i] / denom
+            beta[i]  = (y[i] - a[i] * beta[i-1]) / denom
+
+        # Substitution arrière
+        x = np.zeros(n)
+        x[-1] = beta[-1]
+        for i in range(n-2, -1, -1):
+            x[i] = gamma[i] * x[i+1] + beta[i]
+
+        return x
 
 while precisionResultat >= precisionAAtteindre :
     precisionResultat = 0
     print("Itération : ", cptIteration)
     cptIteration += 1
-    # ← AJOUTE CES 2 LIGNES
     T_avant = T.copy()       
     if not USE_THOMAS :
         #region Test si l'on calcule les températures sur la ligne
@@ -350,7 +362,7 @@ while precisionResultat >= precisionAAtteindre :
                 # C Sources
                 c1 = lbdE * (dy_apres + dy_avant) / 2
                 c2 = lbdE * (dx_apres + dx_avant) / 2
-                q_sources = 200 / 9
+                q_sources = 100 * 3 / 9
                 #endregion
 
                 #region W
@@ -444,7 +456,7 @@ while precisionResultat >= precisionAAtteindre :
 
                     elif j < j_enduit :
                         if i in indices_sources_y and j == j_source :             # Position sur les sources de chaleur 
-                            T[i][j] = (c1 * (T[i-1][j] / dx_avant + T[i+1][j] / dx_apres) + c2 * (T[1][j-1] / dy_avant + T[1][j+1] / dy_apres) + q_sources) / (c1 * (1/dx_avant + 1/dx_apres) + c2 * (1/dy_avant + 1/dy_apres))
+                            T[i][j] = (c1 * (T[i-1][j] / dx_avant + T[i+1][j] / dx_apres) + c2 * (T[1][j-1] / dy_avant + T[1][j+1] / dy_apres) + q_sources / ((dx_apres+dx_avant)/2 * (dy_apres+dy_avant)/2 * 3)) / (c1 * (1/dx_avant + 1/dx_apres) + c2 * (1/dy_avant + 1/dy_apres)) 
                             #print(f"Emplacement : point enduit : {T[i][j]} et emplacement i={i}, j = {j}")
                         else : 
                             #print(f"else générique : i={i}, j={j}")
@@ -768,7 +780,10 @@ while precisionResultat >= precisionAAtteindre :
                             y_vec[j] = -(c_h * T[i-1][j] + c_b * T[i+1][j])
 
                     elif j == j_enduit :
-                        T[i][j] = (cEB_g * T[i][j - 1] + cEB_b * T[i+1][j] + cEB_h * T[i-1][j] + cEB_d * T[i][j+1])/(cEB_d + cEB_g + cEB_b + cEB_h)
+                        a_vec[j] = cEB_g
+                        c_vec[j] = cEB_d
+                        b_vec[j] = -(cEB_g + cEB_d + cEB_h + cEB_b)
+                        y_vec[j] = -(cEB_h * T[i-1][j] + cEB_b * T[i+1][j])
 
                     elif j < j_mur_int :
                         if j < j_air_gauche :           # mur intérieur plein gauche
@@ -797,7 +812,7 @@ while precisionResultat >= precisionAAtteindre :
                                 b_vec[j] = -(cAlveole_g + cAlveole_d + cAlveole_h + cAlveole_b)
                                 y_vec[j] = -(cAlveole_h * T[i-1][j] + cAlveole_b * T[i+1][j])   # ← coin HAUT de la cavité (interface B/A + bord haut)
                             elif dans_cavite :
-                                a_vec[j] = cBA_g
+                                a_vec[j] = cBA_g 
                                 c_vec[j] = cBA_d
                                 b_vec[j] = -(cBA_g + cBA_d + cBA_h + cBA_b)
                                 y_vec[j] = -(cBA_h * T[i-1][j] + cBA_b * T[i+1][j]) # ← interface B/A pure (plein milieu cavité)
@@ -827,10 +842,10 @@ while precisionResultat >= precisionAAtteindre :
                                 b_vec[j] = -(cAlveole_g + cAlveole_d + cAlveole_h + cAlveole_b)
                                 y_vec[j] = -(cAlveole_h * T[i-1][j] + cAlveole_b * T[i+1][j])   # ← bord haut cavité (air + bord horizontal)
                             elif dans_cavite :
-                                a_vec[j] = c_g
-                                c_vec[j] = c_d
-                                b_vec[j] = -(c_g + c_d + c_h + c_b)
-                                y_vec[j] = -(c_h * T[i-1][j] + c_b * T[i+1][j])   # ← nœud intérieur lbdA pur
+                                a_vec[j] = c_g * lbdA
+                                c_vec[j] = c_d * lbdA
+                                b_vec[j] = -(c_g + c_d + c_h + c_b) * lbdA
+                                y_vec[j] = -(c_h * T[i-1][j] + c_b * T[i+1][j]) * lbdA   # ← nœud intérieur lbdA pur
                             else :
                                 a_vec[j] = c_g
                                 c_vec[j] = c_d
@@ -967,31 +982,30 @@ print("Colonne bord droit (j=j_mur_int) :")
 for i in range(0, n, n//10):
     print(f"  i={i}, y={y[i]:.2f} cm → T={T[i][j_mur_int]:.2f}°C")
 
-T_init = (TempE + TempI) / 2  # = 16.0
-nb_non_mis_a_jour = np.sum(T == T_init)
-print(f"Nœuds encore à {T_init}°C : {nb_non_mis_a_jour} / {n*m}")
-print(f"Pourcentage : {100*nb_non_mis_a_jour/(n*m):.1f}%")
+# T_init = (TempE + TempI) / 2  # = 16.0
+# nb_non_mis_a_jour = np.sum(T == T_init)
+# print(f"Nœuds encore à {T_init}°C : {nb_non_mis_a_jour} / {n*m}")
+# print(f"Pourcentage : {100*nb_non_mis_a_jour/(n*m):.1f}%")
 
 
-# Combien de nœuds dans la zone cavité ?
-nb_cavite = (j_air_droite - j_air_gauche + 1) * n
-nb_alveoles = len(indices_alv_bas)
-nb_noeuds_air = 0
-for k in range(nb_alveoles):
-    nb_noeuds_air += (indices_alv_haut[k] - indices_alv_bas[k] + 1) * (j_air_droite - j_air_gauche + 1)
-print(f"Nœuds attendus dans les cavités : {nb_noeuds_air}")
-print(f"Nœuds bloqués à 16°C : 12077")
+# # Combien de nœuds dans la zone cavité ?
+# nb_cavite = (j_air_droite - j_air_gauche + 1) * n
+# nb_alveoles = len(indices_alv_bas)
+# nb_noeuds_air = 0
+# for k in range(nb_alveoles):
+#     nb_noeuds_air += (indices_alv_haut[k] - indices_alv_bas[k] + 1) * (j_air_droite - j_air_gauche + 1)
+# print(f"Nœuds attendus dans les cavités : {nb_noeuds_air}")
 
-mask_init = (T == 16.0)
-import matplotlib.pyplot as plt
-plt.figure()
-plt.imshow(mask_init, origin='lower', aspect='auto',
-           extent=[x[0], x[-1], y[0], y[-1]])
-plt.colorbar(label='1 = jamais mis à jour')
-plt.title('Nœuds bloqués à 16°C')
-plt.xlabel('Épaisseur (cm)')
-plt.ylabel('Hauteur (cm)')
-plt.show()
+# mask_init = (T == 16.0)
+# import matplotlib.pyplot as plt
+# plt.figure()
+# plt.imshow(mask_init, origin='lower', aspect='auto',
+#            extent=[x[0], x[-1], y[0], y[-1]])
+# plt.colorbar(label='1 = jamais mis à jour')
+# plt.title('Nœuds bloqués à 16°C')
+# plt.xlabel('Épaisseur (cm)')
+# plt.ylabel('Hauteur (cm)')
+# plt.show()
 print(f"j_enduit     = {j_enduit}  → x = {x[j_enduit]:.2f} cm")
 print(f"j_air_gauche = {j_air_gauche} → x = {x[j_air_gauche]:.2f} cm")
 print(f"j_air_droite = {j_air_droite} → x = {x[j_air_droite]:.2f} cm")
@@ -1001,6 +1015,11 @@ i_mid = n // 2 + 3
 print("Profil T complet :")
 for j in range(m):
     print(f"  x={x[j]:.3f} cm → T={T[i_mid][j]:.4f}°C")
+
+i_source = indices_alv_bas[0] + (indices_alv_haut[0] - indices_alv_bas[0]) // 2
+print(f"\nProfil complet à i={i_source} (milieu source 1, y={y[i_source]:.2f} cm) :")
+for j in range(m):
+    print(f"  x={x[j]:.3f} cm → T={T[i_source][j]:.4f}°C")
 # =================
 
 # Calcul du flux
@@ -1009,46 +1028,68 @@ flux_x = -dT_dx
 flux_y = -dT_dy
 intensite = np.sqrt(flux_x**2 + flux_y**2)
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
 
 # --- Plot 1 : Champ de température ---
 im = ax1.imshow(
     T,
-    cmap='hot',
+    cmap='RdYlBu_r',   # bleu (froid) → jaune → rouge (chaud), bien lisible
     origin='lower',
     extent=[x[0], x[-1], y[0], y[-1]],
     aspect='auto',
-    vmin=10,   # ← température minimale attendue
-    vmax=24    # ← légèrement au-dessus du max source
+    vmin=10,
+    vmax=28
 )
-plt.colorbar(im, ax=ax1, label='Température (°C)')
-ax1.set_title('Champ de température')
+cbar1 = plt.colorbar(im, ax=ax1, label='Température (°C)')
+ax1.set_title('Champ de température', fontsize=13, fontweight='bold')
 ax1.set_xlabel('Épaisseur (cm)')
 ax1.set_ylabel('Hauteur (cm)')
 
+# Lignes verticales pour repérer les interfaces
+for xpos, label in [
+    (x[j_mur_ext],    'Mur/Iso'),
+    (x[j_isolant],    'Iso/End'),
+    (x[j_enduit],     'End'),
+    (x[j_air_gauche], 'Air←'),
+    (x[j_air_droite], '→Air'),
+    (x[j_mur_int],    'Mur int'),
+]:
+    ax1.axvline(x=xpos, color='white', linewidth=0.8, linestyle='--', alpha=0.6)
+    ax1.text(xpos, y[-1]*1.01, label, color='white', fontsize=6,
+             ha='center', va='bottom', clip_on=False)
+
 # --- Plot 2 : Flux thermique ---
-pas_fleche_i = max(1, n // 20)
-pas_fleche_j = max(1, m // 20)
+pas_fleche_i = max(1, n // 25)
+pas_fleche_j = max(1, m // 25)
 
-X_pos, Y_pos, FX, FY, INT = [], [], [], [], []
+I_idx = np.arange(0, n, pas_fleche_i)
+J_idx = np.arange(0, m, pas_fleche_j)
+II, JJ = np.meshgrid(I_idx, J_idx, indexing='ij')
 
-for I in range(0, n, pas_fleche_i):
-    for J in range(0, m, pas_fleche_j):
-        X_pos.append(x[J])
-        Y_pos.append(y[I])
-        FX.append(flux_x[I, J])
-        FY.append(flux_y[I, J])
-        INT.append(intensite[I, J])
+X_pos  = x[JJ]
+Y_pos  = y[II]
+FX_arr = flux_x[II, JJ]
+FY_arr = flux_y[II, JJ]
+INT_arr = intensite[II, JJ]
+
+# Normaliser les flèches pour qu'elles aient toutes la même longueur
+norme = np.sqrt(FX_arr**2 + FY_arr**2)
+norme[norme == 0] = 1
+FX_norm = FX_arr / norme
+FY_norm = FY_arr / norme
 
 sc = ax2.quiver(
-    X_pos, Y_pos, FX, FY, INT,
+    X_pos, Y_pos, FX_norm, FY_norm, INT_arr,
     cmap='plasma',
-    angles='xy'
+    angles='xy',
+    scale=40,
+    width=0.003,
+    headwidth=4
 )
 plt.colorbar(sc, ax=ax2, label='Intensité flux (°C/cm)')
 ax2.set_xlim(x[0], x[-1])
 ax2.set_ylim(y[0], y[-1])
-ax2.set_title('Flux thermique')
+ax2.set_title('Flux thermique (direction normalisée)', fontsize=13, fontweight='bold')
 ax2.set_xlabel('Épaisseur (cm)')
 ax2.set_ylabel('Hauteur (cm)')
 ax2.set_aspect('auto')
