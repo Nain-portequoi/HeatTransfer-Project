@@ -362,7 +362,7 @@ while precisionResultat >= precisionAAtteindre :
                 # C Sources
                 c1 = lbdE * (dy_apres + dy_avant) / 2
                 c2 = lbdE * (dx_apres + dx_avant) / 2
-                q_sources = 100 * 3 / 9
+                q_sources = 100 * 6 / 9
                 #endregion
 
                 #region W
