@@ -13,54 +13,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-#region Pas de la matrice
-pasMatriceX = 0.5
-pasMatriceY = 0.5
-
-pasTemponMatriceX = pasMatriceX
-pasTemponMatriceY = pasMatriceY
-#endregion
+pasMatriceCst = 0.005
 
 #region Dimension de la surface
-eM = 20.0 # cm
-eI = 12.0
-eS_cm = 3.0
-eB = 5.0
-lM = 300.0
-hM = 200.0
-hB_cm = 10.0
-k_cm = 1.5
-
-k_x = int(k_cm / pasMatriceX)
-k_y = int(k_cm / pasMatriceY)
-hB = int(hB_cm / pasMatriceY)
-eS_mid = int((eS_cm/2) / pasMatriceX)
-
-lgMurExterieur_cm = eM - 0.5
-lgIsolant_cm = lgMurExterieur_cm + eI - 0.5
-lgEnduit_cm = lgIsolant_cm + eS_cm - 0.5
-lgMurInterieur_cm = lgEnduit_cm + eB - 0.5
-lgMurInterieurAvantAir_cm = lgEnduit_cm + k_cm - 0.5
-lgMurInterieurApresAir_cm = lgMurInterieur_cm - k_cm - 0.5
-
-lgMurExterieur = int (lgMurExterieur_cm / pasMatriceX)
-lgIsolant = int (lgIsolant_cm / pasMatriceX)
-lgEnduit = int (lgEnduit_cm / pasMatriceX)
-lgMurInterieur = int (lgMurInterieur_cm / pasMatriceX)
-lgMurInterieurAvantAir = int (lgMurInterieurAvantAir_cm / pasMatriceX)
-lgMurInterieurApresAir = int (lgMurInterieurApresAir_cm / pasMatriceX)
-
-j_source = lgIsolant + eS_mid
-#endregion
-
-#region Dimension de la matrice
-n = int(hM / pasMatriceY)
-m = int((eM + eI + eS_cm + eB) / pasMatriceX)
+eM = 0.2 # m
+eI = 0.12
+eS_m = 0.03
+eB = 0.05
+hM = 2
+hB_m = 0.1
+k_m = 0.015
 #endregion
 
 #region Pas des sources de chaleurs
-pasSources_cm = 20
-pasSources = int(pasSources_cm / pasMatriceY)
+pasSources_m = 0.2
 #endregion
 
 #region Precision
@@ -81,8 +47,8 @@ lbdA = 0.026
 #endregion
 
 #region Température
-TempE = 10
-TempI = 22
+TempE = 283.15
+TempI = 295.15
 #endregion
 
 #region Coefficent de convection et Phi
@@ -106,15 +72,15 @@ if TEST_PAS_VARIABLE :
     singularites_y.add(0.0)
     singularites_y.add(hM)
 
-    # Sources (tous les pasSources_cm)
-    for k in range(1, int(hM / pasSources_cm)):
-        singularites_y.add(float(k * pasSources_cm))
+    # Sources (tous les pasSources_m)
+    for k in range(1, int(hM / pasSources_m)):
+        singularites_y.add(float(k * pasSources_m))
 
     # Interfaces alvéoles : bord bas et haut de chaque cavité d'air
-    for k in range(int(hM / hB_cm)):
-        y_alv = k * hB_cm
-        singularites_y.add(float(y_alv + k_cm))
-        singularites_y.add(float(y_alv + hB_cm - k_cm))
+    for k in range(int(hM / hB_m)):
+        y_alv = k * hB_m
+        singularites_y.add(float(y_alv + k_m))
+        singularites_y.add(float(y_alv + hB_m - k_m))
 
     singularites_y = sorted(singularites_y)
 
@@ -144,13 +110,12 @@ if TEST_PAS_VARIABLE :
     singularites_x.add(0.0)
     singularites_x.add(float(eM))
     singularites_x.add(float(eM + eI))
-    singularites_x.add(float(eM + eI + eS_cm / 2))       # source n_s
-    singularites_x.add(float(eM + eI + eS_cm))
-    singularites_x.add(float(eM + eI + eS_cm + k_cm))            # bord gauche cavité
-    singularites_x.add(float(eM + eI + eS_cm + eB - k_cm))       # bord droit cavité
-    singularites_x.add(float(eM + eI + eS_cm + eB))
+    singularites_x.add(float(eM + eI + eS_m / 2))       # source n_s
+    singularites_x.add(float(eM + eI + eS_m))
+    singularites_x.add(float(eM + eI + eS_m + k_m))            # bord gauche cavité
+    singularites_x.add(float(eM + eI + eS_m + eB - k_m))       # bord droit cavité
+    singularites_x.add(float(eM + eI + eS_m + eB))
 
-# ===================== AXE X =====================
     singularites_x = sorted(singularites_x)
 
     x_parts = []
@@ -177,24 +142,21 @@ if TEST_PAS_VARIABLE :
     j_bord_ext   = np.searchsorted(x, 0.0)
     j_mur_ext    = np.searchsorted(x, eM)
     j_isolant    = np.searchsorted(x, eM + eI)
-    j_source     = np.searchsorted(x, eM + eI + eS_cm / 2)
-    j_enduit     = np.searchsorted(x, eM + eI + eS_cm)
-    j_air_gauche = np.searchsorted(x, eM + eI + eS_cm + k_cm)
-    j_air_droite = np.searchsorted(x, eM + eI + eS_cm + eB - k_cm)
-    j_mur_int    = np.searchsorted(x, eM + eI + eS_cm + eB)
-
-    i_bord_haut  = np.searchsorted(y, 0.0)
-    i_bord_bas   = np.searchsorted(y, hM)
+    j_source     = np.searchsorted(x, eM + eI + eS_m / 2)
+    j_enduit     = np.searchsorted(x, eM + eI + eS_m)
+    j_air_gauche = np.searchsorted(x, eM + eI + eS_m + k_m)
+    j_air_droite = np.searchsorted(x, eM + eI + eS_m + eB - k_m)
+    j_mur_int    = np.searchsorted(x, eM + eI + eS_m + eB)
 
     # Sources en Y
-    indices_sources_y = [np.searchsorted(y, float(k * pasSources_cm)) 
-                        for k in range(1, int(hM / pasSources_cm))]
+    indices_sources_y = [min(np.searchsorted(y, float(k * pasSources_m)), n - 1)
+                        for k in range(1, int(hM / pasSources_m))]
 
     # Interfaces alvéoles en Y
-    indices_alv_bas  = [np.searchsorted(y, float(k * hB_cm + k_cm)) 
-                        for k in range(int(hM / hB_cm))]
-    indices_alv_haut = [np.searchsorted(y, float(k * hB_cm + hB_cm - k_cm)) 
-                        for k in range(int(hM / hB_cm))]
+    indices_alv_bas  = [min(np.searchsorted(y, float(k * hB_m + k_m)), n - 1)
+                        for k in range(int(hM / hB_m))]
+    indices_alv_haut = [min(np.searchsorted(y, float(k * hB_m + hB_m - k_m)), n - 1)
+                        for k in range(int(hM / hB_m))]
 
     #print(f"j_mur_int = {j_mur_int}, x[j_mur_int] = {x[j_mur_int]:.6f}, x[-1] = {x[-1]:.6f}")
     #print(f"j_mur_int == m-1 ? {j_mur_int == m - 1}")
@@ -202,32 +164,39 @@ if TEST_PAS_VARIABLE :
     #endregion
 else :
     #region Test pas uniforme
-    n_test = 50
-    m_test = 50
+    dx = 0.005  
+    dy = 0.005  
 
-    y = np.linspace(0, hM, n_test)
-    x = np.linspace(0, eM + eI + eS_cm + eB, m_test)
-    n = len(y)
+    x = np.round(np.arange(0, eM + eI + eS_m + eB + dx, dx), 10)
+    y = np.round(np.arange(0, hM + dy, dy), 10)
     m = len(x)
+    n = len(y)
 
     j_bord_ext   = np.searchsorted(x, 0.0)
     j_mur_ext    = np.searchsorted(x, eM)
     j_isolant    = np.searchsorted(x, eM + eI)
-    j_source     = np.searchsorted(x, eM + eI + eS_cm / 2)
-    j_enduit     = np.searchsorted(x, eM + eI + eS_cm)
-    j_air_gauche = np.searchsorted(x, eM + eI + eS_cm + k_cm)
-    j_air_droite = np.searchsorted(x, eM + eI + eS_cm + eB - k_cm)
-    j_mur_int    = np.searchsorted(x, eM + eI + eS_cm + eB)
+    j_source     = np.searchsorted(x, eM + eI + eS_m / 2)
+    j_enduit     = np.searchsorted(x, eM + eI + eS_m)
+    j_air_gauche = np.searchsorted(x, eM + eI + eS_m + k_m)
+    j_air_droite = np.searchsorted(x, eM + eI + eS_m + eB - k_m)
+    j_mur_int    = np.searchsorted(x, eM + eI + eS_m + eB)
 
-    i_bord_haut  = np.searchsorted(y, 0.0)
-    i_bord_bas   = np.searchsorted(y, hM)
+    for nom, val in [('j_mur_ext', eM), ('j_isolant', eM+eI), ('j_source', eM+eI+eS_m/2),
+                  ('j_enduit', eM+eI+eS_m), ('j_air_gauche', eM+eI+eS_m+k_m),
+                  ('j_air_droite', eM+eI+eS_m+eB-k_m), ('j_mur_int', eM+eI+eS_m+eB)]:
+        idx = np.searchsorted(x, val)
+        if abs(x[idx] - val) > 1e-9:
+            print(f"⚠️ {nom} : val={val:.8f} absent de x, plus proche = x[{idx}]={x[idx]:.8f}")
 
-    indices_sources_y = [np.searchsorted(y, float(k * pasSources_cm))
-                        for k in range(1, int(hM / pasSources_cm))]
-    indices_alv_bas  = [np.searchsorted(y, float(k * hB_cm + k_cm))
-                        for k in range(int(hM / hB_cm))]
-    indices_alv_haut = [np.searchsorted(y, float(k * hB_cm + hB_cm - k_cm))
-                        for k in range(int(hM / hB_cm))]
+    indices_sources_y = [min(np.searchsorted(y, float(k * pasSources_m)), n - 1)
+                        for k in range(1, int(round(hM / pasSources_m)))]
+
+    indices_alv_bas  = [min(np.searchsorted(y, float(k * hB_m + k_m)), n - 1)
+                        for k in range(int(hM / hB_m))]
+    indices_alv_haut = [min(np.searchsorted(y, float(k * hB_m + hB_m - k_m)), n - 1)
+                        for k in range(int(hM / hB_m))]
+    
+    
 
     #endregion
 
@@ -263,7 +232,7 @@ print(f"n={n}, m={m}")
 print(f"j_source      = {j_source}  → x = {x[j_source]:.4f} cm")
 print(f"j_enduit      = {j_enduit}  → x = {x[j_enduit]:.4f} cm")
 print(f"j_air_gauche  = {j_air_gauche}  → x = {x[j_air_gauche]:.4f} cm")
-print(f"eM+eI+eS/2    = {eM + eI + eS_cm/2:.4f} cm  ← position attendue source")
+print(f"eM+eI+eS/2    = {eM + eI + eS_m/2:.4f} cm  ← position attendue source")
 
 # ===== CHOIX DU SOLVEUR =====
 USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas (ADI)
@@ -295,6 +264,9 @@ if USE_THOMAS :
 
         return x
 
+N_Source = 9
+q_sources = 100 / 0.03 / N_Source
+
 while precisionResultat >= precisionAAtteindre :
     precisionResultat = 0
     print("Itération : ", cptIteration)
@@ -314,13 +286,18 @@ while precisionResultat >= precisionAAtteindre :
                 #region Temperature Tempon
                 temperatureTempon = T[i][j]
                 #endregion
-
-                #region Gestion des pas
-                dx_avant = x[j] - x[j-1] if j > 0 else x[1] - x[0]
-                dx_apres = x[j+1] - x[j] if j < m-1 else x[-1] - x[-2]
-                dy_avant = y[i] - y[i-1] if i > 0 else y[1] - y[0]
-                dy_apres = y[i+1] - y[i] if i < n-1 else y[-1] - y[-2]
-                #endregion
+                if TEST_PAS_VARIABLE :
+                    #region Gestion des pas
+                    dx_avant = x[j] - x[j-1] if j > 0 else x[1] - x[0]
+                    dx_apres = x[j+1] - x[j] if j < m-1 else x[-1] - x[-2]
+                    dy_avant = y[i] - y[i-1] if i > 0 else y[1] - y[0]
+                    dy_apres = y[i+1] - y[i] if i < n-1 else y[-1] - y[-2]
+                    #endregion
+                else :
+                    dx_avant = dx
+                    dx_apres = dx_avant
+                    dy_avant = dx_avant
+                    dy_apres = dx_avant
 
                 #region C
                 # C Intérieur d'un matériau
@@ -362,7 +339,9 @@ while precisionResultat >= precisionAAtteindre :
                 # C Sources
                 c1 = lbdE * (dy_apres + dy_avant) / 2
                 c2 = lbdE * (dx_apres + dx_avant) / 2
-                q_sources = 100 * 6 / 9
+                N_Source = 9
+                q_sources = 100 / 0.03 / N_Source
+                #q_sources = 100000
                 #endregion
 
                 #region W
@@ -456,8 +435,8 @@ while precisionResultat >= precisionAAtteindre :
 
                     elif j < j_enduit :
                         if i in indices_sources_y and j == j_source :             # Position sur les sources de chaleur 
-                            T[i][j] = (c1 * (T[i-1][j] / dx_avant + T[i+1][j] / dx_apres) + c2 * (T[1][j-1] / dy_avant + T[1][j+1] / dy_apres) + q_sources / ((dx_apres+dx_avant)/2 * (dy_apres+dy_avant)/2 * 3)) / (c1 * (1/dx_avant + 1/dx_apres) + c2 * (1/dy_avant + 1/dy_apres)) 
-                            #print(f"Emplacement : point enduit : {T[i][j]} et emplacement i={i}, j = {j}")
+                            T[i][j] = (2 / (dx_avant + dx_apres) * (T[i][j+1]/dx_apres + T[i][j-1]/dx_avant) + 2 / (dy_avant+dy_apres) * (T[i-1][j]/dy_avant + T[i+1][j]/dy_apres) + q_sources/lbdE) / (2*(1/(dx_avant*dx_apres) + 1/(dy_avant*dy_apres)))
+                            print(f"Emplacement : point enduit : {T[i][j]} et emplacement i={i}, j = {j}")
                         else : 
                             #print(f"else générique : i={i}, j={j}")
                             T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
@@ -489,13 +468,13 @@ while precisionResultat >= precisionAAtteindre :
 
                         elif j < j_air_droite :           # plein air
                             if idx_alv is not None and i == indices_alv_bas[idx_alv] :
-                                cAlveole_g = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
+                                cAlveole_g = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_avant)
                                 cAlveole_b = lbdB * (dx_apres * dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
                                 cAlveole_h = lbdA * (dx_avant * dx_apres) / (2*dy_avant)
                                 T[i][j] = (cAlveole_g * T[i][j-1] + cAlveole_h * T[i-1][j] + cAlveole_d * T[i][j+1] + cAlveole_b * T[i+1][j]) / (cAlveole_g + cAlveole_h + cAlveole_d + cAlveole_b)   # ← bord bas cavité (air + bord horizontal)
                             elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
-                                cAlveole_g = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_apres)
+                                cAlveole_g = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_avant)
                                 cAlveole_b = lbdA * (dx_apres * dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_apres)
                                 cAlveole_h = lbdB * (dx_avant * dx_apres) / (2*dy_avant)
@@ -654,7 +633,7 @@ while precisionResultat >= precisionAAtteindre :
                 # C Sources
                 c1 = lbdE * (dy_apres + dy_avant) / 2
                 c2 = lbdE * (dx_apres + dx_avant) / 2
-                q_sources = 200 / 9
+                
                 #endregion
 
                 #region W
@@ -722,7 +701,7 @@ while precisionResultat >= precisionAAtteindre :
                         wC_C = hI * dy_apres / 2
                         wG_C = lbdB * dy_apres / (2*dx_avant)
                         wB_C = lbdB * dx_avant / (2*dy_apres)
-                        a_vec[j] =  wG_bc; c_vec[j] = 0 ; b_vec[j] = -(wC_C+wG_C+wB_C) ; y_vec[j] = -(wC_C * TempI + wB_C*T[i+1][j])
+                        a_vec[j] =  wG_C; c_vec[j] = 0 ; b_vec[j] = -(wC_C+wG_C+wB_C) ; y_vec[j] = -(wC_C * TempI + wB_C*T[i+1][j])
                 #endregion
 
                 #region Centre
@@ -762,10 +741,10 @@ while precisionResultat >= precisionAAtteindre :
 
                     elif j < j_enduit :
                         if i in indices_sources_y and j == j_source :             # Position sur les sources de chaleur 
-                            cS_g = c2 / dy_avant
-                            cS_d = c2 / dy_apres
-                            cS_h = c1 / dx_avant
-                            cS_b = c1 / dx_apres
+                            cS_g = c1 / dx_avant
+                            cS_d = c1 / dx_apres
+                            cS_h = c2 / dy_avant
+                            cS_b = c2 / dy_apres
 
                             a_vec[j] = cS_g
                             c_vec[j] = cS_d
@@ -974,13 +953,13 @@ print(f"x[j_mur_int]   = {x[j_mur_int]:.6f}")
 print(f"j_mur_int == m-1 ? {j_mur_int == m-1}")
 
 i_mid = n // 2 + 3
-print(f"\nProfil T au milieu (i={i_mid}, y={y[i_mid]:.2f} cm) :")
+print(f"\nProfil T au milieu (i={i_mid}, y={y[i_mid]:.2f} m) :")
 for j in range(0, m, m//10):
-    print(f"  x={x[j]:.2f} cm → T={T[i_mid][j]:.2f}°C")
+    print(f"  x={x[j]:.2f} m → T={T[i_mid][j]:.2f}°C")
 
 print("Colonne bord droit (j=j_mur_int) :")
 for i in range(0, n, n//10):
-    print(f"  i={i}, y={y[i]:.2f} cm → T={T[i][j_mur_int]:.2f}°C")
+    print(f"  i={i}, y={y[i]:.2f} m → T={T[i][j_mur_int]:.2f}°C")
 
 # T_init = (TempE + TempI) / 2  # = 16.0
 # nb_non_mis_a_jour = np.sum(T == T_init)
@@ -1006,21 +985,22 @@ for i in range(0, n, n//10):
 # plt.xlabel('Épaisseur (cm)')
 # plt.ylabel('Hauteur (cm)')
 # plt.show()
-print(f"j_enduit     = {j_enduit}  → x = {x[j_enduit]:.2f} cm")
-print(f"j_air_gauche = {j_air_gauche} → x = {x[j_air_gauche]:.2f} cm")
-print(f"j_air_droite = {j_air_droite} → x = {x[j_air_droite]:.2f} cm")
-print(f"j_mur_int    = {j_mur_int} → x = {x[j_mur_int]:.2f} cm")
+print(f"j_enduit     = {j_enduit}  → x = {x[j_enduit]:.2f} m")
+print(f"j_air_gauche = {j_air_gauche} → x = {x[j_air_gauche]:.2f} m")
+print(f"j_air_droite = {j_air_droite} → x = {x[j_air_droite]:.2f} m")
+print(f"j_mur_int    = {j_mur_int} → x = {x[j_mur_int]:.2f} m")
 
 i_mid = n // 2 + 3
 print("Profil T complet :")
 for j in range(m):
-    print(f"  x={x[j]:.3f} cm → T={T[i_mid][j]:.4f}°C")
+    print(f"  x={x[j]:.3f} m → T={T[i_mid][j]:.4f}°C")
 
 i_source = indices_alv_bas[0] + (indices_alv_haut[0] - indices_alv_bas[0]) // 2
-print(f"\nProfil complet à i={i_source} (milieu source 1, y={y[i_source]:.2f} cm) :")
+print(f"\nProfil complet à i={i_source} (milieu source 1, y={y[i_source]:.2f} m) :")
 for j in range(m):
-    print(f"  x={x[j]:.3f} cm → T={T[i_source][j]:.4f}°C")
+    print(f"  x={x[j]:.3f} m → T={T[i_source][j]:.4f}°C")
 # =================
+
 
 # Calcul du flux
 dT_dy, dT_dx = np.gradient(T, y, x)
@@ -1037,13 +1017,13 @@ im = ax1.imshow(
     origin='lower',
     extent=[x[0], x[-1], y[0], y[-1]],
     aspect='auto',
-    vmin=10,
-    vmax=28
+    vmin=10 + 273.15,
+    vmax=80 + 273.15
 )
-cbar1 = plt.colorbar(im, ax=ax1, label='Température (°C)')
+cbar1 = plt.colorbar(im, ax=ax1, label='Température (K)')
 ax1.set_title('Champ de température', fontsize=13, fontweight='bold')
-ax1.set_xlabel('Épaisseur (cm)')
-ax1.set_ylabel('Hauteur (cm)')
+ax1.set_xlabel('Épaisseur (m)')
+ax1.set_ylabel('Hauteur (m)')
 
 # Lignes verticales pour repérer les interfaces
 for xpos, label in [
@@ -1086,12 +1066,12 @@ sc = ax2.quiver(
     width=0.003,
     headwidth=4
 )
-plt.colorbar(sc, ax=ax2, label='Intensité flux (°C/cm)')
+plt.colorbar(sc, ax=ax2, label='Intensité flux (K/m)')
 ax2.set_xlim(x[0], x[-1])
 ax2.set_ylim(y[0], y[-1])
 ax2.set_title('Flux thermique (direction normalisée)', fontsize=13, fontweight='bold')
-ax2.set_xlabel('Épaisseur (cm)')
-ax2.set_ylabel('Hauteur (cm)')
+ax2.set_xlabel('Épaisseur (m)')
+ax2.set_ylabel('Hauteur (m)')
 ax2.set_aspect('auto')
 
 plt.tight_layout()
