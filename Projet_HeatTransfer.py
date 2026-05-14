@@ -12,7 +12,12 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+t0 = time.time()
 
+# ===== CHOIX =====
+USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas (ADI)
+TEST_PAS_VARIABLE = False
 pasMatriceCst = 0.005
 
 #region Dimension de la surface
@@ -58,7 +63,7 @@ phi = 100
 #endregion
 
 temperatureTempon = 10
-TEST_PAS_VARIABLE = False
+
 if TEST_PAS_VARIABLE :
     #region Pas variable
     # Paramètres du raffinement
@@ -263,6 +268,7 @@ if TEST_PAS_VARIABLE :
     print(f"find_idx_y_asc(0.2) = {find_idx_y_asc(0.2)}")
     print(f"find_idx_y_asc(1.0) = {find_idx_y_asc(1.0)}")
     print(f"n - 1 - find_idx_y_asc(0.2) = {n - 1 - find_idx_y_asc(0.2)}")
+
 # ===========================
 #endregion
 
@@ -270,7 +276,7 @@ if TEST_PAS_VARIABLE :
 T = np.linspace(TempE, TempI, m)[np.newaxis, :] * np.ones((n, 1))
 
 # ===== CHOIX DU SOLVEUR =====
-USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas (ADI)
+
 if USE_THOMAS :
     a_vec = np.zeros(m)
     b_vec = np.zeros(m)
@@ -298,12 +304,8 @@ if USE_THOMAS :
             x[i] = gamma[i] * x[i+1] + beta[i]
 
         return x
-
-# N_Source = 9
-# q_sources = (100 / 0.03)/N_Source * 1500
-# Multiplie par 1500 pour saturer le graphique et voir si les taches apparaissent
-#q_sources = (100 / 0.03) * 100
-
+    
+    is_source_y = set(indices_sources_y)
 
 is_cavite = np.zeros(n, dtype=bool)
 idx_alv_par_ligne = np.full(n, -1, dtype=int)  # -1 = pas de cavité
@@ -319,11 +321,16 @@ if TEST_PAS_VARIABLE :
 N_Source = len(indices_sources_y)
 q_sources = phi * hM / N_Source / (dx * dy)
 
+print(f"dx = {dx:.6f} m")
+print(f"dy = {dy:.6f} m")
+print(f"dx*dy = {dx*dy:.2e} m²")
+print(f"q_sources = {q_sources:.2e} W/m³")
+
 print(f"Dimensions de la matrice :\n\tNombre de lignes = {n},\n\tNombre de colonnes = {m}\n\t\tDimension totale = {n} * {m} = {n * m}")
 
 while precisionResultat >= precisionAAtteindre :
     precisionResultat = 0
-    print("Itération : ", cptIteration)
+    print(f"Temps : {time.time()-t0:.1f}s, Itérations : {cptIteration}")
     cptIteration += 1
     T_avant = T.copy()       
     if not USE_THOMAS :
@@ -647,10 +654,19 @@ while precisionResultat >= precisionAAtteindre :
             for j in range(m):
 
                 #region Gestion des pas
-                dx_avant = x[j] - x[j-1] if j > 0 else x[1] - x[0]
-                dx_apres = x[j+1] - x[j] if j < m-1 else x[-1] - x[-2]
-                dy_avant = abs(y[i] - y[i-1]) if i > 0 else abs(y[1] - y[0])
-                dy_apres = abs(y[i+1] - y[i]) if i < n-1 else abs(y[-1] - y[-2])
+                if TEST_PAS_VARIABLE :
+                    #region Gestion des pas
+                    dx_avant = x[j] - x[j-1] if j > 0 else x[1] - x[0]
+                    dx_apres = x[j+1] - x[j] if j < m-1 else x[-1] - x[-2]
+                    dy_avant = abs(y[i] - y[i-1]) if i > 0 else abs(y[1] - y[0])
+                    dy_apres = abs(y[i+1] - y[i]) if i < n-1 else abs(y[-1] - y[-2])
+                    #endregion
+                else :
+                    dx_avant = dx
+                    dx_apres = dx_avant
+                    dy_avant = dx_avant
+                    dy_apres = dx_avant
+
                 #endregion
 
                 #region C
@@ -800,7 +816,7 @@ while precisionResultat >= precisionAAtteindre :
                         y_vec[j] = -(cIE_h * T[i-1][j] + cIE_b * T[i+1][j])
 
                     elif j < j_enduit :
-                        if i in indices_sources_y and j == j_source :             # Position sur les sources de chaleur 
+                        if i in is_source_y and j == j_source :             # Position sur les sources de chaleur 
                             cS_g = c1 / dx_avant
                             cS_d = c1 / dx_apres
                             cS_h = c2 / dy_avant
@@ -809,7 +825,7 @@ while precisionResultat >= precisionAAtteindre :
                             a_vec[j] = cS_g
                             c_vec[j] = cS_d
                             b_vec[j] = -(cS_g + cS_d + cS_h + cS_b)
-                            y_vec[j] = -(cS_h * T[i-1][j] + cS_b * T[i+1][j] + q_sources)
+                            y_vec[j] = -(cS_h * T[i-1][j] + cS_b * T[i+1][j]) - q_sources * dx * dy
                             #print(f"Emplacement : point enduit : {T[i][j]} et emplacement i={i}, j = {j}")
                         else : 
                             #print(f"else générique : i={i}, j={j}")
@@ -843,9 +859,9 @@ while precisionResultat >= precisionAAtteindre :
                                 y_vec[j] = -(cAlveole_h * T[i-1][j] + cAlveole_b * T[i+1][j])   # ← coin BAS de la cavité (interface B/A + bord bas)
                             elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
                                 cAlveole_g = lbdB * (dy_apres + dy_avant) / (2 * dx_avant)
-                                cAlveole_b = lbdB * (dx_apres + dx_avant) / (2 * dy_avant)
+                                cAlveole_b = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_apres)
                                 cAlveole_d = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
-                                cAlveole_h = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_apres)
+                                cAlveole_h = lbdB * (dx_apres + dx_avant) / (2 * dy_avant)
                                 a_vec[j] = cAlveole_g
                                 c_vec[j] = cAlveole_d
                                 b_vec[j] = -(cAlveole_g + cAlveole_d + cAlveole_h + cAlveole_b)
@@ -863,19 +879,19 @@ while precisionResultat >= precisionAAtteindre :
 
                         elif j < j_air_droite :           # plein air
                             if idx_alv is not None and i == indices_alv_bas[idx_alv] :
-                                cAlveole_g = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
-                                cAlveole_b = lbdB * (dx_apres * dx_avant) / (2 * dy_apres)
+                                cAlveole_g = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_avant)
+                                cAlveole_b = lbdB * (dx_apres + dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
-                                cAlveole_h = lbdA * (dx_avant * dx_apres) / (2*dy_avant)
+                                cAlveole_h = lbdA * (dx_avant + dx_apres) / (2*dy_avant)
                                 a_vec[j] = cAlveole_g
                                 c_vec[j] = cAlveole_d
                                 b_vec[j] = -(cAlveole_g + cAlveole_d + cAlveole_h + cAlveole_b)
                                 y_vec[j] = -(cAlveole_h * T[i-1][j] + cAlveole_b * T[i+1][j])   # ← bord bas cavité (air + bord horizontal)
                             elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
                                 cAlveole_g = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_apres)
-                                cAlveole_b = lbdA * (dx_apres * dx_avant) / (2 * dy_apres)
+                                cAlveole_b = lbdA * (dx_apres + dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_apres)
-                                cAlveole_h = lbdB * (dx_avant * dx_apres) / (2*dy_avant)
+                                cAlveole_h = lbdB * (dx_avant + dx_apres) / (2*dy_avant)
                                 a_vec[j] = cAlveole_g
                                 c_vec[j] = cAlveole_d
                                 b_vec[j] = -(cAlveole_g + cAlveole_d + cAlveole_h + cAlveole_b)
@@ -989,7 +1005,7 @@ while precisionResultat >= precisionAAtteindre :
                         a_vec[j] =  wG_D; c_vec[j] = 0 ; b_vec[j] = -(wG_D+wC_D+wH_D) ; y_vec[j] = -(wH_D*T[i-1][j] + wC_D * TempI)
                 #endregion
             T[i] = thomas(a_vec, b_vec, c_vec, y_vec)
-            precisionResultat = max(precisionResultat, np.max(np.abs(T[i] - T_ancien[i])))
+            precisionResultat = np.max(np.abs(T - T_avant)) / np.max(np.abs(T))
                 #noeuds_modifies = np.sum(T != T_avant)
                 #print(f"Itération {cptIteration} — nœuds modifiés : {noeuds_modifies} / {n*m}")
                 
