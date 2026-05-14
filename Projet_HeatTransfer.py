@@ -31,7 +31,7 @@ pasSources_m = 0.2
 
 #region Precision
 precisionResultat = 1
-precisionAAtteindre = 1e-2
+precisionAAtteindre = 1e-3
 #endregion
 
 #region Compteurs
@@ -62,8 +62,8 @@ TEST_PAS_VARIABLE = False
 if TEST_PAS_VARIABLE :
     #region Pas variable
     # Paramètres du raffinement
-    nb_fin  = 6    # nœuds dans la zone raffinée
-    nb_gros = 15    # nœuds dans la zone loin (entre deux singularités)
+    nb_fin  = 3    # nœuds dans la zone raffinée
+    nb_gros = 8    # nœuds dans la zone loin (entre deux singularités)
 
     # ===================== AXE Y =====================
     singularites_y = set()
@@ -93,27 +93,52 @@ if TEST_PAS_VARIABLE :
             dist = y_next - y_sing
             delta_y = min(0.05, dist / 4)
             
-            y_parts.append(np.linspace(y_sing + delta_y, y_next - delta_y, nb_gros))
+            mid = (y_sing + y_next) / 2
+            y_parts.append(np.linspace(y_sing + delta_y/4, y_sing + delta_y, nb_fin))
+            y_parts.append(np.linspace(y_sing + delta_y,   y_next - delta_y, nb_gros))
+            y_parts.append(np.linspace(y_next - delta_y,   y_next,           nb_fin))
 
-    y = np.unique(np.concatenate(y_parts))
+    y_asc = np.unique(np.round(np.concatenate(y_parts), 10))
+
+    def find_idx_y_asc(val):
+        idx = np.searchsorted(y_asc, val)
+        if idx < len(y_asc) and abs(y_asc[idx] - val) < 1e-9:
+            return idx
+        # fallback : plus proche voisin
+        return int(np.argmin(np.abs(y_asc - val)))
+
+    _alv_bas_asc  = [find_idx_y_asc(float(k * hB_m + k_m))       for k in range(int(hM / hB_m))]
+    _alv_haut_asc = [find_idx_y_asc(float(k * hB_m + hB_m - k_m)) for k in range(int(hM / hB_m))]
+
+    y = y_asc[::-1]
     n = len(y)
+
+    indices_alv_bas  = [n - 1 - idx for idx in _alv_haut_asc]  
+    indices_alv_haut = [n - 1 - idx for idx in _alv_bas_asc]  
+
+    indices_sources_y = [
+        n - 1 - find_idx_y_asc(float(k * pasSources_m))
+        for k in range(1, int(hM / pasSources_m))
+    ]
+
 
     # Vérification
     for s in singularites_y:
-        idx = np.searchsorted(y, s)
-        if abs(y[idx] - s) > 1e-10:
-            print(f"⚠️ Singularité y={s:.6f} absente ! Plus proche : y[{idx}]={y[idx]:.6f}")
+        idx = np.searchsorted(y_asc, s)
+        if idx >= len(y_asc) or abs(y_asc[idx] - s) > 1e-9:
+            print(f"⚠️ Singularité y={s:.6f} absente ! Plus proche : y_asc[{idx}]={y_asc[idx]:.6f}")
+        else:
+            print(f"✅ y={s:.6f} → idx_asc={idx}, idx_retourné={n-1-idx}")
 
     # ===================== AXE X =====================
     singularites_x = set()
-
     singularites_x.add(0.0)
     singularites_x.add(float(eM))
     singularites_x.add(float(eM + eI))
-    singularites_x.add(float(eM + eI + eS_m / 2))       # source n_s
+    singularites_x.add(float(eM + eI + eS_m / 2))
     singularites_x.add(float(eM + eI + eS_m))
-    singularites_x.add(float(eM + eI + eS_m + k_m))            # bord gauche cavité
-    singularites_x.add(float(eM + eI + eS_m + eB - k_m))       # bord droit cavité
+    singularites_x.add(float(eM + eI + eS_m + k_m))
+    singularites_x.add(float(eM + eI + eS_m + eB - k_m))
     singularites_x.add(float(eM + eI + eS_m + eB))
 
     singularites_x = sorted(singularites_x)
@@ -121,46 +146,48 @@ if TEST_PAS_VARIABLE :
     x_parts = []
     for idx, x_sing in enumerate(singularites_x):
         x_parts.append([x_sing])
-        
+
         if idx < len(singularites_x) - 1:
             x_next = singularites_x[idx + 1]
-            dist = x_next - x_sing
-            delta_x = min(0.05, dist / 4)  # ← jamais plus grand que dist/4
-            
-            x_parts.append(np.linspace(x_sing + delta_x, x_next - delta_x, nb_gros))
+            dist   = x_next - x_sing
+            delta_x = min(0.05, dist / 4)
 
-    x = np.unique(np.concatenate(x_parts))
+            x_parts.append(np.linspace(x_sing + delta_x/4, x_sing + delta_x, nb_fin))   # ← raffiné départ
+            x_parts.append(np.linspace(x_sing + delta_x,   x_next - delta_x, nb_gros))  # ← gros milieu
+            x_parts.append(np.linspace(x_next - delta_x,   x_next,           nb_fin))   # ← raffiné arrivée
+
+    x = np.unique(np.round(np.concatenate(x_parts), 10))   # ← round ajouté
     m = len(x)
 
+    # Recalcul des indices j sur le nouveau x non-uniforme
+    def find_idx_x(val):
+        idx = np.searchsorted(x, val)
+        if idx < len(x) and abs(x[idx] - val) < 1e-9:
+            return idx
+        return int(np.argmin(np.abs(x - val)))
+
+    j_bord_ext   = find_idx_x(0.0)
+    j_mur_ext    = find_idx_x(float(eM))
+    j_isolant    = find_idx_x(float(eM + eI))
+    j_source     = find_idx_x(float(eM + eI + eS_m / 2))
+    j_enduit     = find_idx_x(float(eM + eI + eS_m))
+    j_air_gauche = find_idx_x(float(eM + eI + eS_m + k_m))
+    j_air_droite = find_idx_x(float(eM + eI + eS_m + eB - k_m))
+    j_mur_int    = find_idx_x(float(eM + eI + eS_m + eB))
+
+    # Vérification
+    if not (j_isolant < j_source < j_enduit):
+        print(f"⚠️ j_source ({j_source}) mal positionné ! Isolant:{j_isolant}, Enduit:{j_enduit}")
 
     for s in singularites_x:
         idx = np.searchsorted(x, s)
-        if abs(x[idx] - s) > 1e-10:
+        if idx >= len(x) or abs(x[idx] - s) > 1e-9:
             print(f"⚠️ Singularité x={s:.6f} absente ! Plus proche : x[{idx}]={x[idx]:.6f}")
+        else:
+            print(f"✅ x={s:.6f} → j={idx}")
 
-    # ===================== INDICES DES SINGULARITÉS =====================
-    j_bord_ext   = np.searchsorted(x, 0.0)
-    j_mur_ext    = np.searchsorted(x, eM)
-    j_isolant    = np.searchsorted(x, eM + eI)
-    j_source     = np.searchsorted(x, eM + eI + eS_m / 2)
-    j_enduit     = np.searchsorted(x, eM + eI + eS_m)
-    j_air_gauche = np.searchsorted(x, eM + eI + eS_m + k_m)
-    j_air_droite = np.searchsorted(x, eM + eI + eS_m + eB - k_m)
-    j_mur_int    = np.searchsorted(x, eM + eI + eS_m + eB)
-
-    # Sources en Y
-    indices_sources_y = [min(np.searchsorted(y, float(k * pasSources_m)), n - 1)
-                        for k in range(1, int(hM / pasSources_m))]
-
-    # Interfaces alvéoles en Y
-    indices_alv_bas  = [min(np.searchsorted(y, float(k * hB_m + k_m)), n - 1)
-                        for k in range(int(hM / hB_m))]
-    indices_alv_haut = [min(np.searchsorted(y, float(k * hB_m + hB_m - k_m)), n - 1)
-                        for k in range(int(hM / hB_m))]
-
-    #print(f"j_mur_int = {j_mur_int}, x[j_mur_int] = {x[j_mur_int]:.6f}, x[-1] = {x[-1]:.6f}")
-    #print(f"j_mur_int == m-1 ? {j_mur_int == m - 1}")
-    #print(f"n={n}, m={m}")
+    dx = pasMatriceCst
+    dy = pasMatriceCst
     #endregion
 else :
     #region Test pas uniforme
@@ -186,12 +213,12 @@ else :
         print(f"⚠️ Alerte : j_source ({j_source}) est mal positionné ! Isolant:{j_isolant}, Enduit:{j_enduit}")
 
     def to_idx_y(val):
-        return int(round((hM - val) / dy))
+        return int(round((hM - val)/ dy))
 
 
-    indices_alv_bas  = [min(to_idx_y(k * hB_m + k_m), n - 1)
+    indices_alv_bas  = [min(to_idx_y(k * hB_m + hB_m - k_m), n - 1)
                         for k in range(int(hM / hB_m))]
-    indices_alv_haut = [min(to_idx_y(k * hB_m + hB_m - k_m), n - 1)
+    indices_alv_haut = [min(to_idx_y(k * hB_m + k_m), n - 1)
                         for k in range(int(hM / hB_m))]
     
     indices_sources_y = [min(to_idx_y(k * pasSources_m), n - 1)
@@ -227,6 +254,15 @@ print(f"j_source      = {j_source}  → x = {x[j_source]:.4f} cm")
 print(f"j_enduit      = {j_enduit}  → x = {x[j_enduit]:.4f} cm")
 print(f"j_air_gauche  = {j_air_gauche}  → x = {x[j_air_gauche]:.4f} cm")
 print(f"eM+eI+eS/2    = {eM + eI + eS_m/2:.4f} cm  ← position attendue source")
+
+print(f"n = {n}")
+print(f"indices_sources_y = {indices_sources_y}")
+print(f"Hauteurs sources  = {[y[k] for k in indices_sources_y]}")
+
+if TEST_PAS_VARIABLE :
+    print(f"find_idx_y_asc(0.2) = {find_idx_y_asc(0.2)}")
+    print(f"find_idx_y_asc(1.0) = {find_idx_y_asc(1.0)}")
+    print(f"n - 1 - find_idx_y_asc(0.2) = {n - 1 - find_idx_y_asc(0.2)}")
 # ===========================
 #endregion
 
@@ -263,10 +299,11 @@ if USE_THOMAS :
 
         return x
 
-N_Source = 9
-q_sources = (100 / 0.03)/N_Source * 100
-# Multiplie par 50 pour saturer le graphique et voir si les taches apparaissent
+# N_Source = 9
+# q_sources = (100 / 0.03)/N_Source * 1500
+# Multiplie par 1500 pour saturer le graphique et voir si les taches apparaissent
 #q_sources = (100 / 0.03) * 100
+
 
 is_cavite = np.zeros(n, dtype=bool)
 idx_alv_par_ligne = np.full(n, -1, dtype=int)  # -1 = pas de cavité
@@ -276,6 +313,13 @@ for k in range(len(indices_alv_bas)):
         is_cavite[i] = True
         idx_alv_par_ligne[i] = k
 
+
+if TEST_PAS_VARIABLE : 
+    dx = dx = 0.05
+N_Source = len(indices_sources_y)
+q_sources = phi * hM / N_Source / (dx * dy)
+
+print(f"Dimensions de la matrice :\n\tNombre de lignes = {n},\n\tNombre de colonnes = {m}\n\t\tDimension totale = {n} * {m} = {n * m}")
 
 while precisionResultat >= precisionAAtteindre :
     precisionResultat = 0
@@ -442,21 +486,16 @@ while precisionResultat >= precisionAAtteindre :
                     elif j == j_isolant :
                         T[i][j] = (cIE_g * T[i][j - 1] + cIE_b * T[i+1][j] + cIE_h * T[i-1][j] + cIE_d * T[i][j+1])/(cIE_d + cIE_g + cIE_b + cIE_h)
 
-#MODIFIE ->
                     elif j < j_enduit :
-                        # Définition de la zone physique de la source (épaisseur eS_m)
-                        # On récupère les indices x correspondant au début et à la fin de l'enduit
-                        j_source_debut = np.searchsorted(x, float(eM + eI))
-                        j_source_fin   = np.searchsorted(x, float(eM + eI + eS_m))
-
-                        # Condition : Si on est à une hauteur de source ET dans l'épaisseur de l'enduit
-                        if i in indices_sources_y and (j_source_debut <= j <= j_source_fin):
-                            # Équation de Poisson discrétisée : Laplacien(T) + q/lambda = 0 [cite: 331, 332, 340]
+                        if i in indices_sources_y and j == j_source:
                             term_x = (2 / (dx_avant + dx_apres)) * (T[i][j+1]/dx_apres + T[i][j-1]/dx_avant)
                             term_y = (2 / (dy_avant + dy_apres)) * (T[i-1][j]/dy_avant + T[i+1][j]/dy_apres)
                             denom  = 2 * (1/(dx_avant * dx_apres) + 1/(dy_avant * dy_apres))
                             
-                            # On ajoute le terme source q_sources (W/m3) divisé par la conductivité [cite: 317, 340]
+                            # On ajoute le terme source q_sources (W/m3) divisé par la conductivité
+                            if TEST_PAS_VARIABLE :
+                                N_Source = len(indices_sources_y)
+                                q_sources = phi * hM / N_Source / ((dx_apres+dx_avant)/2 * (dy_apres+dy_avant)/2)
                             T[i][j] = (term_x + term_y + (q_sources / lbdE)) / denom
                         else : 
                             # Équation de Laplace : Conduction pure sans source [cite: 343]
@@ -470,17 +509,17 @@ while precisionResultat >= precisionAAtteindre :
                             T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)
 
                         elif j == j_air_gauche :          # interface mur B / air A
-                            if idx_alv is not None and i == indices_alv_bas[idx_alv] :
+                            if idx_alv is not None and i == indices_alv_bas[idx_alv] :  # coin inf gauche
                                 cAlveole_g = lbdB * (dy_apres + dy_avant) / (2 * dx_avant)
                                 cAlveole_b = lbdB * (dx_apres + dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdB * dy_avant + lbdA * dy_apres) / (2 * dx_apres)
                                 cAlveole_h = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_avant)
                                 T[i][j] = (cAlveole_g * T[i][j-1] + cAlveole_h * T[i-1][j] + cAlveole_d * T[i][j+1] + cAlveole_b * T[i+1][j]) / (cAlveole_g + cAlveole_h + cAlveole_d + cAlveole_b)   # ← coin BAS de la cavité (interface B/A + bord bas)
-                            elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
+                            elif idx_alv is not None and i == indices_alv_haut[idx_alv] : # coin sup gauche
                                 cAlveole_g = lbdB * (dy_apres + dy_avant) / (2 * dx_avant)
-                                cAlveole_b = lbdB * (dx_apres + dx_avant) / (2 * dy_avant)
+                                cAlveole_b = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_apres)
                                 cAlveole_d = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
-                                cAlveole_h = (lbdB * dx_avant + lbdA * dx_apres) / (2 * dy_apres)
+                                cAlveole_h = lbdB * (dx_apres + dx_avant) / (2 * dy_avant)
                                 T[i][j] = (cAlveole_g * T[i][j-1] + cAlveole_h * T[i-1][j] + cAlveole_d * T[i][j+1] + cAlveole_b * T[i+1][j]) / (cAlveole_g + cAlveole_h + cAlveole_d + cAlveole_b)   # ← coin HAUT de la cavité (interface B/A + bord haut)
                             elif dans_cavite :
                                 T[i][j] = (cBA_g * T[i][j-1] + cBA_b * T[i+1][j] + cBA_h * T[i-1][j] + cBA_d * T[i][j+1]) / (cBA_g + cBA_b + cBA_h + cBA_d) # ← interface B/A pure (plein milieu cavité)
@@ -488,17 +527,17 @@ while precisionResultat >= precisionAAtteindre :
                                 T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud dans lbdB hors cavité
 
                         elif j < j_air_droite :           # plein air
-                            if idx_alv is not None and i == indices_alv_bas[idx_alv] :
+                            if idx_alv is not None and i == indices_alv_bas[idx_alv] : 
                                 cAlveole_g = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_avant)
-                                cAlveole_b = lbdB * (dx_apres * dx_avant) / (2 * dy_apres)
+                                cAlveole_b = lbdB * (dx_apres + dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdB * dy_apres + lbdA * dy_avant) / (2 * dx_apres)
-                                cAlveole_h = lbdA * (dx_avant * dx_apres) / (2*dy_avant)
+                                cAlveole_h = lbdA * (dx_avant + dx_apres) / (2*dy_avant)
                                 T[i][j] = (cAlveole_g * T[i][j-1] + cAlveole_h * T[i-1][j] + cAlveole_d * T[i][j+1] + cAlveole_b * T[i+1][j]) / (cAlveole_g + cAlveole_h + cAlveole_d + cAlveole_b)   # ← bord bas cavité (air + bord horizontal)
                             elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
                                 cAlveole_g = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_avant)
-                                cAlveole_b = lbdA * (dx_apres * dx_avant) / (2 * dy_apres)
+                                cAlveole_b = lbdA * (dx_apres + dx_avant) / (2 * dy_apres)
                                 cAlveole_d = (lbdA * dy_apres + lbdB * dy_avant) / (2 * dx_apres)
-                                cAlveole_h = lbdB * (dx_avant * dx_apres) / (2*dy_avant)
+                                cAlveole_h = lbdB * (dx_avant + dx_apres) / (2*dy_avant)
                                 T[i][j] = (cAlveole_g * T[i][j-1] + cAlveole_h * T[i-1][j] + cAlveole_d * T[i][j+1] + cAlveole_b * T[i+1][j]) / (cAlveole_g + cAlveole_h + cAlveole_d + cAlveole_b)   # ← bord haut cavité (air + bord horizontal)
                             elif dans_cavite :
                                 T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud intérieur lbdA pur
@@ -506,14 +545,14 @@ while precisionResultat >= precisionAAtteindre :
                                 T[i][j] = (c_d * T[i][j+1] + c_g * T[i][j-1] + c_b * T[i+1][j] + c_h * T[i-1][j]) / (c_g + c_d + c_b + c_h)   # ← nœud dans lbdB (entre deux cavités)
 
                         elif j == j_air_droite :          # interface air A / mur B
-                            if idx_alv is not None and i == indices_alv_bas[idx_alv] :
+                            if idx_alv is not None and i == indices_alv_bas[idx_alv] :  # coin inf droit
                                 #print("Emplacement : coin alvéole inf droit")
                                 cAlveole_d = lbdB * (dy_apres + dy_avant) / (2 * dx_apres)
                                 cAlveole_b = lbdB * (dx_apres + dx_avant) / (2 * dy_apres)
                                 cAlveole_g = (lbdB * dy_avant + lbdA * dy_apres) / (2 * dx_avant)
                                 cAlveole_h = (lbdB * dx_apres + lbdA * dx_avant) / (2 * dy_avant)
                                 T[i][j] = (cAlveole_g * T[i][j-1] + cAlveole_h * T[i-1][j] + cAlveole_d * T[i][j+1] + cAlveole_b * T[i+1][j]) / (cAlveole_g + cAlveole_h + cAlveole_d + cAlveole_b)   # ← coin BAS (interface A/B + bord bas)
-                            elif idx_alv is not None and i == indices_alv_haut[idx_alv] :
+                            elif idx_alv is not None and i == indices_alv_haut[idx_alv] :   # coin sup droit
                                 #print("Emplacement : coin alvéole sup droit")
                                 cAlveole_d = lbdB * (dy_apres + dy_avant) / (2 * dx_apres)
                                 cAlveole_h = lbdB * (dx_apres + dx_avant) / (2 * dy_avant)
@@ -610,8 +649,8 @@ while precisionResultat >= precisionAAtteindre :
                 #region Gestion des pas
                 dx_avant = x[j] - x[j-1] if j > 0 else x[1] - x[0]
                 dx_apres = x[j+1] - x[j] if j < m-1 else x[-1] - x[-2]
-                dy_avant = y[i] - y[i-1] if i > 0 else y[1] - y[0]
-                dy_apres = y[i+1] - y[i] if i < n-1 else y[-1] - y[-2]
+                dy_avant = abs(y[i] - y[i-1]) if i > 0 else abs(y[1] - y[0])
+                dy_apres = abs(y[i+1] - y[i]) if i < n-1 else abs(y[-1] - y[-2])
                 #endregion
 
                 #region C
@@ -955,16 +994,10 @@ while precisionResultat >= precisionAAtteindre :
                 #print(f"Itération {cptIteration} — nœuds modifiés : {noeuds_modifies} / {n*m}")
                 
         #endregion
-
-
-
-            
+       
     print("\tPrecision : ", precisionResultat)
-    #print(f"T[0][0]    = {T[0][0]:.4f}°C")        # coin B — doit être ~10°C
-    #print(f"T[0][-1]   = {T[0][-1]:.4f}°C")       # coin C — doit être ~22°C
-    #print(f"T[n//2][0] = {T[n//2][0]:.4f}°C")     # milieu bord gauche — ~10-11°C
-    #print(f"T[n//2][-1]= {T[n//2][-1]:.4f}°C")    # milieu bord droit — ~21-22°C
 
+#region Debug
 # ===== DEBUG =====
 print("\t===== DEBUG =====")
 print(f"j_mur_int = {j_mur_int}, m-1 = {m-1}")
@@ -974,38 +1007,14 @@ print(f"x[j_mur_int]   = {x[j_mur_int]:.6f}")
 print(f"j_mur_int == m-1 ? {j_mur_int == m-1}")
 
 i_mid = n // 2 + 3
-print(f"\nProfil T au milieu (i={i_mid}, y={y[i_mid]:.2f} m) :")
-for j in range(0, m, m//10):
-    print(f"  x={x[j]:.2f} m → T={T[i_mid][j]:.2f}°C")
+# print(f"\nProfil T au milieu (i={i_mid}, y={y[i_mid]:.2f} m) :")
+# for j in range(0, m, m//10):
+#     print(f"  x={x[j]:.2f} m → T={T[i_mid][j]:.2f}°C")
 
 print("Colonne bord droit (j=j_mur_int) :")
 for i in range(0, n, n//10):
     print(f"  i={i}, y={y[i]:.2f} m → T={T[i][j_mur_int]:.2f}°C")
 
-# T_init = (TempE + TempI) / 2  # = 16.0
-# nb_non_mis_a_jour = np.sum(T == T_init)
-# print(f"Nœuds encore à {T_init}°C : {nb_non_mis_a_jour} / {n*m}")
-# print(f"Pourcentage : {100*nb_non_mis_a_jour/(n*m):.1f}%")
-
-
-# # Combien de nœuds dans la zone cavité ?
-# nb_cavite = (j_air_droite - j_air_gauche + 1) * n
-# nb_alveoles = len(indices_alv_bas)
-# nb_noeuds_air = 0
-# for k in range(nb_alveoles):
-#     nb_noeuds_air += (indices_alv_haut[k] - indices_alv_bas[k] + 1) * (j_air_droite - j_air_gauche + 1)
-# print(f"Nœuds attendus dans les cavités : {nb_noeuds_air}")
-
-# mask_init = (T == 16.0)
-# import matplotlib.pyplot as plt
-# plt.figure()
-# plt.imshow(mask_init, origin='lower', aspect='auto',
-#            extent=[x[0], x[-1], y[0], y[-1]])
-# plt.colorbar(label='1 = jamais mis à jour')
-# plt.title('Nœuds bloqués à 16°C')
-# plt.xlabel('Épaisseur (cm)')
-# plt.ylabel('Hauteur (cm)')
-# plt.show()
 print(f"j_enduit     = {j_enduit}  → x = {x[j_enduit]:.2f} m")
 print(f"j_air_gauche = {j_air_gauche} → x = {x[j_air_gauche]:.2f} m")
 print(f"j_air_droite = {j_air_droite} → x = {x[j_air_droite]:.2f} m")
@@ -1020,8 +1029,29 @@ i_source = indices_alv_bas[0] + (indices_alv_haut[0] - indices_alv_bas[0]) // 2
 print(f"\nProfil complet à i={i_source} (milieu source 1, y={y[i_source]:.2f} m) :")
 for j in range(m):
     print(f"  x={x[j]:.3f} m → T={T[i_source][j]:.4f}°C")
-# =================
+if TEST_PAS_VARIABLE :
+    print(f"y[120] = {y[120]:.6f} m   (hauteur physique)")
+    print(f"Sources y : {[y_asc[n-1-idx] for idx in [n-1-s for s in indices_sources_y]]}")
+    # Plus simple :
+    print(f"indices_sources_y = {indices_sources_y}")
+    print(f"Hauteurs sources  = {[y[k] for k in indices_sources_y]}")
+    print(f"j_source = {j_source}, x[j_source] = {x[j_source]:.6f} m")
+# Doit être ≈ eM + eI + eS_m/2 = 0.335 m
 
+GRAPHIQUE_DE_TEMPERATURE = True
+if GRAPHIQUE_DE_TEMPERATURE :
+    i_source = indices_sources_y[len(indices_sources_y)//2]  # source du milieu
+    print(f"Tracé à i={i_source}, y={y[i_source]:.4f} m")
+    plt.figure(figsize=(6,4))
+    plt.plot(x, T[i_source, :], '-b')
+    plt.xlabel('x [m]')
+    plt.ylabel('T [K]')
+    plt.title(f'Profil de température à i = {i_source}')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+# =================
+#endregion
 
 # Calcul du flux
 dT_dy, dT_dx = np.gradient(T, y, x)
@@ -1030,17 +1060,6 @@ flux_y = -dT_dy
 intensite = np.sqrt(flux_x**2 + flux_y**2)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
-
-# --- Plot 1 : Champ de température ---
-#im = ax1.imshow(
- #   T,
-   # cmap='RdYlBu_r',   # bleu (froid) → jaune → rouge (chaud), bien lisible
-    #origin='lower',
-    #extent=[x[0], x[-1], y[0], y[-1]],
-   # aspect='auto',
-    #vmin=10 + 273.15, MODIFIE
-    #vmax=80 + 273.15 MODIFIE
-#)
 im = ax1.imshow(
     T,
     cmap='hot', # 'hot' est excellent pour voir les sources de chaleur
@@ -1106,6 +1125,251 @@ ax2.set_aspect('auto')
 plt.tight_layout()
 plt.show()
 
+
+#Plot de vérif géométrique
+SHOW_GRAPH_GEOMETRY = False
+if SHOW_GRAPH_GEOMETRY :
+
+    import matplotlib.patches as patches
+
+    fig, ax = plt.subplots(figsize=(8, 10))
+
+    # Dimensions totales
+    x_tot = eM + eI + eS_m + eB
+    y_tot = hM
+
+    # Couches principales
+    ax.add_patch(patches.Rectangle((0, 0), eM, hM, facecolor='lightgray', edgecolor='black', label='Mur extérieur'))
+    ax.add_patch(patches.Rectangle((eM, 0), eI, hM, facecolor='beige', edgecolor='black', label='Isolant'))
+    ax.add_patch(patches.Rectangle((eM + eI, 0), eS_m, hM, facecolor='mistyrose', edgecolor='black', label='Enduit'))
+    ax.add_patch(patches.Rectangle((eM + eI + eS_m, 0), eB, hM, facecolor='whitesmoke', edgecolor='black', label='Mur intérieur'))
+
+    # Cavités d'air
+    for k in range(int(hM / hB_m)):
+        y_bas = k * hB_m + k_m
+        hauteur_air = hB_m - 2 * k_m
+        if y_bas + hauteur_air <= hM:
+            ax.add_patch(
+                patches.Rectangle(
+                    (eM + eI + eS_m + k_m, y_bas),
+                    eB - 2 * k_m,
+                    hauteur_air,
+                    facecolor='skyblue',
+                    edgecolor='black'
+                )
+            )
+
+    # Sources de chaleur dans l’enduit
+    x_source = eM + eI + eS_m / 2
+    for k in range(1, int(round(hM / pasSources_m))):
+        y_source = k * pasSources_m
+        if y_source < hM:
+            ax.plot(x_source, y_source, 'ro', markersize=6)
+
+    # Conditions limites
+    ax.text(-0.03, hM/2, f"Te = {TempE-273.15:.0f}°C\nhe = {hE}", ha='right', va='center', fontsize=10)
+    ax.text(x_tot + 0.02, hM/2, f"Ti = {TempI-273.15:.0f}°C\nhi = {hI}", ha='left', va='center', fontsize=10)
+
+    # Interfaces verticales
+    for xpos in [0, eM, eM + eI, eM + eI + eS_m, x_tot]:
+        ax.axvline(x=xpos, color='k', linewidth=0.8)
+
+    # Mise en forme
+    ax.set_xlim(-0.05, x_tot + 0.08)
+    ax.set_ylim(0, hM)
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
+    ax.set_title("Vérification visuelle de la géométrie et des conditions du projet")
+    ax.set_aspect('equal')
+    ax.grid(True, linestyle='--', alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+
+    from matplotlib.colors import ListedColormap
+
+    zone = np.zeros((n, m), dtype=int)
+
+    jsource_debut = np.searchsorted(x, float(eM + eI))
+    jsource_fin   = np.searchsorted(x, float(eM + eI + eS_m))
+
+    for i in range(n):
+        dans_cavite = is_cavite[i]
+        idx_alv = idx_alv_par_ligne[i] if dans_cavite else None
+
+        for j in range(m):
+
+            # Sources
+            if i in indices_sources_y and jsource_debut <= j < jsource_fin:
+                zone[i, j] = 5
+
+            # Cavité d'air
+            elif dans_cavite and j_air_gauche <= j <= j_air_droite:
+                zone[i, j] = 7
+
+            # Mur extérieur
+            elif j < j_mur_ext:
+                zone[i, j] = 0
+
+            # Interface mur ext / isolant
+            elif j == j_mur_ext:
+                zone[i, j] = 1
+
+            # Isolant
+            elif j < j_isolant:
+                zone[i, j] = 2
+
+            # Interface isolant / enduit
+            elif j == j_isolant:
+                zone[i, j] = 3
+
+            # Enduit
+            elif j < j_enduit:
+                zone[i, j] = 4
+
+            # Interface enduit / mur intérieur
+            elif j == j_enduit:
+                zone[i, j] = 8
+
+            # Mur intérieur plein
+            elif j < j_mur_int:
+                zone[i, j] = 6
+
+            # Bord intérieur
+            elif j == j_mur_int:
+                zone[i, j] = 11
+
+    from matplotlib.colors import ListedColormap
+    from matplotlib.patches import Patch
+
+    # Reprend tes paramètres déjà définis :
+    # eM, eI, eS_m, eB, hM, hB_m, k_m, pasSources_m, dx, dy
+
+    x = np.round(np.arange(0, eM + eI + eS_m + eB + dx, dx), 10)
+    y = np.round(np.arange(0, hM + dy, dy), 10)
+    m = len(x)
+    n = len(y)
+
+    j_mur_ext    = np.searchsorted(x, eM)
+    j_isolant    = np.searchsorted(x, eM + eI)
+    j_source     = np.searchsorted(x, eM + eI + eS_m / 2)
+    j_enduit     = np.searchsorted(x, eM + eI + eS_m)
+    j_air_gauche = np.searchsorted(x, eM + eI + eS_m + k_m)
+    j_air_droite = np.searchsorted(x, eM + eI + eS_m + eB - k_m)
+    j_mur_int    = np.searchsorted(x, eM + eI + eS_m + eB)
+
+    def to_idx_y(val):
+        return int(round(val / dy))
+
+    indices_sources_y = [
+        min(to_idx_y(k * pasSources_m), n - 1)
+        for k in range(1, int(round(hM / pasSources_m)))
+    ]
+
+    indices_alv_bas = [
+        min(to_idx_y(k * hB_m + k_m), n - 1)
+        for k in range(int(hM / hB_m))
+    ]
+
+    indices_alv_haut = [
+        min(to_idx_y(k * hB_m + hB_m - k_m), n - 1)
+        for k in range(int(hM / hB_m))
+    ]
+
+    is_cavite = np.zeros(n, dtype=bool)
+    for b, h in zip(indices_alv_bas, indices_alv_haut):
+        is_cavite[b:h+1] = True
+
+    # Codes :
+    # 0 mur ext
+    # 1 interface M/I
+    # 2 isolant
+    # 3 interface I/E
+    # 4 enduit
+    # 5 source
+    # 6 mur intérieur
+    # 7 air
+    # 8 interface E/B
+    # 9 bord haut
+    # 10 bord bas
+    # 11 bord gauche
+    # 12 bord droit
+
+    zone = np.zeros((n, m), dtype=int)
+
+    for i in range(n):
+        dans_cavite = is_cavite[i]
+
+        for j in range(m):
+            if j < j_mur_ext:
+                z = 0
+            elif j == j_mur_ext:
+                z = 1
+            elif j < j_isolant:
+                z = 2
+            elif j == j_isolant:
+                z = 3
+            elif j < j_enduit:
+                z = 4
+            elif j == j_enduit:
+                z = 8
+            elif j < j_mur_int:
+                if dans_cavite and j_air_gauche <= j <= j_air_droite:
+                    z = 7
+                else:
+                    z = 6
+            else:
+                z = 12
+
+            # Source : priorité visuelle
+            if (i in indices_sources_y) and (j == j_source):
+                z = 5
+
+            zone[i, j] = z
+
+    # Bords
+    zone[0, :-1] = 9
+    zone[-1, :-1] = 10
+    zone[:, 0] = 11
+    zone[:, -1] = 12
+
+    cmap = ListedColormap([
+        '#bfbfbf',  # 0 mur ext
+        '#555555',  # 1 int M/I
+        '#ecea99',  # 2 isolant
+        '#dba61c',  # 3 int I/E
+        '#efd8d2',  # 4 enduit
+        '#ff2d2d',  # 5 source
+        '#efefef',  # 6 mur int
+        '#8ecae6',  # 7 air
+        '#8a0f8f',  # 8 int E/B
+        '#2ca02c',  # 9 bord haut
+        '#1b8f1b',  # 10 bord bas
+        '#2b6cff',  # 11 bord gauche
+        '#2b6cff',  # 12 bord droit
+    ])
+
+    plt.figure(figsize=(8, 10))
+    plt.imshow(zone, origin='lower', aspect='auto', cmap=cmap, vmin=0, vmax=12, interpolation='nearest')
+    plt.xlabel("j")
+    plt.ylabel("i")
+    plt.title("Carte logique reconstruite depuis les conditions Python")
+
+    legend_elements = [
+        Patch(facecolor='#bfbfbf', label='Mur extérieur'),
+        Patch(facecolor='#555555', label='Interface M/I'),
+        Patch(facecolor='#ecea99', label='Isolant'),
+        Patch(facecolor='#dba61c', label='Interface I/E'),
+        Patch(facecolor='#efd8d2', label='Enduit'),
+        Patch(facecolor='#ff2d2d', label='Source'),
+        Patch(facecolor='#efefef', label='Mur intérieur'),
+        Patch(facecolor='#8ecae6', label='Air'),
+        Patch(facecolor='#8a0f8f', label='Interface E/B'),
+    ]
+    plt.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0.)
+    plt.tight_layout()
+    plt.show()
 
 
 #region
