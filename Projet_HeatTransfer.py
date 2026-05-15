@@ -16,7 +16,7 @@ import time
 t0 = time.time()
 
 # ===== CHOIX =====
-USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas (ADI)
+USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas 
 TEST_PAS_VARIABLE = False
 pasMatriceCst = 0.005
 
@@ -1057,6 +1057,7 @@ if TEST_PAS_VARIABLE :
 GRAPHIQUE_DE_TEMPERATURE = True
 if GRAPHIQUE_DE_TEMPERATURE :
     avrg = np.mean(T, axis=0)  # moyenne par colonne
+    temperatureRightWall = T[:, -1]
     i_source = indices_sources_y[len(indices_sources_y)//2]  # source du milieu
     print(f"Tracé à i={i_source}, y={y[i_source]:.4f} m")
     plt.figure(figsize=(6,4))
@@ -1073,6 +1074,15 @@ if GRAPHIQUE_DE_TEMPERATURE :
     plt.xlabel('x [m]')
     plt.ylabel('T [K]')
     plt.title('Profil de température moyenne')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(6, 4))
+    plt.plot(y, temperatureRightWall, '-b')
+    plt.xlabel('y [m]')
+    plt.ylabel('T [K]')
+    plt.title('Profil de température au mur extérieur (x = L)')
     plt.grid(True)
     plt.tight_layout()
     plt.show()
