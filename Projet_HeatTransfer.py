@@ -36,7 +36,7 @@ pasSources_m = 0.2
 
 #region Precision
 precisionResultat = 1
-precisionAAtteindre = 1e-2
+precisionAAtteindre = 1e-3
 #endregion
 
 #region Compteurs
@@ -274,8 +274,6 @@ if TEST_PAS_VARIABLE :
 
 # Initialisation de la matrice 
 T = np.linspace(TempE, TempI, m)[np.newaxis, :] * np.ones((n, 1))
-
-# ===== CHOIX DU SOLVEUR =====
 
 if USE_THOMAS :
     a_vec = np.zeros(m)
@@ -1055,8 +1053,10 @@ if TEST_PAS_VARIABLE :
     print(f"j_source = {j_source}, x[j_source] = {x[j_source]:.6f} m")
 # Doit être ≈ eM + eI + eS_m/2 = 0.335 m
 
+
 GRAPHIQUE_DE_TEMPERATURE = True
 if GRAPHIQUE_DE_TEMPERATURE :
+    avrg = np.mean(T, axis=0)  # moyenne par colonne
     i_source = indices_sources_y[len(indices_sources_y)//2]  # source du milieu
     print(f"Tracé à i={i_source}, y={y[i_source]:.4f} m")
     plt.figure(figsize=(6,4))
@@ -1064,6 +1064,15 @@ if GRAPHIQUE_DE_TEMPERATURE :
     plt.xlabel('x [m]')
     plt.ylabel('T [K]')
     plt.title(f'Profil de température à i = {i_source}')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(6, 4))
+    plt.plot(x, avrg, '-b')
+    plt.xlabel('x [m]')
+    plt.ylabel('T [K]')
+    plt.title('Profil de température moyenne')
     plt.grid(True)
     plt.tight_layout()
     plt.show()
