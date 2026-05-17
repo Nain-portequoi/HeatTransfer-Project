@@ -1,29 +1,17 @@
-#region ATTENTION /!\
-# Lorsque vous voulez commencez à coder : Toujours écrire au préalable dans le terminal cette liste de commande (sans le tiret) : 
-#   - git status
-#   - git fetch origin
-#   - git pull
-# Lorsque vous avez fini de coder : Toujours écrire dans le termine cette liste de commande (sans le tiret) :
-#   - git status
-#   - git add .                 Le point est important !
-#   - git commit -m"..."        avec ... étant la description de ce que vous avez modifié dans le code 
-#   - git push origin main
-#endregion
-
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 t0 = time.time()
 
 # ===== CHOIX =====
-USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas 
-TEST_PAS_VARIABLE = False
-LANCER_UNE_SIMULATION = False
+USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas : Pas fonctionnel.
+TEST_PAS_VARIABLE = True
+LANCER_UNE_SIMULATION = True
 pasMatriceCst = 0.005
 
 #region Precision
 precisionResultat = 1
-precisionAAtteindre = 1e-3
+precisionAAtteindre = 1e-5
 #endregion
 
 #region Dimension de la surface
@@ -129,15 +117,6 @@ if TEST_PAS_VARIABLE :
         for k in range(1, int(hM / pasSources_m))
     ]
 
-
-    # Vérification
-    for s in singularites_y:
-        idx = np.searchsorted(y_asc, s)
-        if idx >= len(y_asc) or abs(y_asc[idx] - s) > 1e-9:
-            print(f"⚠️ Singularité y={s:.6f} absente ! Plus proche : y_asc[{idx}]={y_asc[idx]:.6f}")
-        else:
-            print(f"✅ y={s:.6f} → idx_asc={idx}, idx_retourné={n-1-idx}")
-
     # ===================== AXE X =====================
     singularites_x = set()
     singularites_x.add(0.0)
@@ -183,16 +162,7 @@ if TEST_PAS_VARIABLE :
     j_air_droite = find_idx_x(float(eM + eI + eS_m + eB - k_m))
     j_mur_int    = find_idx_x(float(eM + eI + eS_m + eB))
 
-    # Vérification
-    if not (j_isolant < j_source < j_enduit):
-        print(f"⚠️ j_source ({j_source}) mal positionné ! Isolant:{j_isolant}, Enduit:{j_enduit}")
 
-    for s in singularites_x:
-        idx = np.searchsorted(x, s)
-        if idx >= len(x) or abs(x[idx] - s) > 1e-9:
-            print(f"⚠️ Singularité x={s:.6f} absente ! Plus proche : x[{idx}]={x[idx]:.6f}")
-        else:
-            print(f"✅ x={s:.6f} → j={idx}")
 
     dx = pasMatriceCst
     dy = pasMatriceCst
@@ -236,41 +206,41 @@ else :
 
 #region Debug
 # ===== PRINTS DE DEBUG =====
-print(f"j_bord_ext = {j_bord_ext}, x[j_bord_ext] = {x[j_bord_ext]:.6f}, x[0] = {x[0]:.6f}")
-print(f"j_bord_ext == 0 ? {j_bord_ext == 0}")
+# print(f"j_bord_ext = {j_bord_ext}, x[j_bord_ext] = {x[j_bord_ext]:.6f}, x[0] = {x[0]:.6f}")
+# print(f"j_bord_ext == 0 ? {j_bord_ext == 0}")
 
-print(f"j_mur_ext={j_mur_ext} → x={x[j_mur_ext]:.4f} | avant: {x[j_mur_ext-1]:.4f} | après: {x[j_mur_ext+1]:.4f}")
-print(f"j_isolant={j_isolant}  → x={x[j_isolant]:.4f}  | avant: {x[j_isolant-1]:.4f} | après: {x[j_isolant+1]:.4f}")
-print(f"j_enduit={j_enduit}   → x={x[j_enduit]:.4f}   | avant: {x[j_enduit-1]:.4f} | après: {x[j_enduit+1]:.4f}")
+# print(f"j_mur_ext={j_mur_ext} → x={x[j_mur_ext]:.4f} | avant: {x[j_mur_ext-1]:.4f} | après: {x[j_mur_ext+1]:.4f}")
+# print(f"j_isolant={j_isolant}  → x={x[j_isolant]:.4f}  | avant: {x[j_isolant-1]:.4f} | après: {x[j_isolant+1]:.4f}")
+# print(f"j_enduit={j_enduit}   → x={x[j_enduit]:.4f}   | avant: {x[j_enduit-1]:.4f} | après: {x[j_enduit+1]:.4f}")
 
-print("5 premiers x :", x[:5])
-print("5 derniers x :", x[-5:])
-print("dx min =", np.min(np.diff(x)), "cm")
-print("dx max =", np.max(np.diff(x)), "cm")
-print("dy min =", np.min(np.diff(y)), "cm")
-print("dy max =", np.max(np.diff(y)), "cm")
+# print("5 premiers x :", x[:5])
+# print("5 derniers x :", x[-5:])
+# print("dx min =", np.min(np.diff(x)), "cm")
+# print("dx max =", np.max(np.diff(x)), "cm")
+# print("dy min =", np.min(np.diff(y)), "cm")
+# print("dy max =", np.max(np.diff(y)), "cm")
 
-print(f"TempI = {TempI}")
-print(f"TempE = {TempE}")
-print(f"hI = {hI}")
-print(f"hE = {hE}")
+# print(f"TempI = {TempI}")
+# print(f"TempE = {TempE}")
+# print(f"hI = {hI}")
+# print(f"hE = {hE}")
 
-#print(f"T.shape = {T.shape}")  # doit être (n, m) = (nb lignes Y, nb colonnes X)
-print(f"n={n}, m={m}")
+# print(f"T.shape = {T.shape}")  # doit être (n, m) = (nb lignes Y, nb colonnes X)
+# print(f"n={n}, m={m}")
 
-print(f"j_source      = {j_source}  → x = {x[j_source]:.4f} cm")
-print(f"j_enduit      = {j_enduit}  → x = {x[j_enduit]:.4f} cm")
-print(f"j_air_gauche  = {j_air_gauche}  → x = {x[j_air_gauche]:.4f} cm")
-print(f"eM+eI+eS/2    = {eM + eI + eS_m/2:.4f} cm  ← position attendue source")
+# print(f"j_source      = {j_source}  → x = {x[j_source]:.4f} cm")
+# print(f"j_enduit      = {j_enduit}  → x = {x[j_enduit]:.4f} cm")
+# print(f"j_air_gauche  = {j_air_gauche}  → x = {x[j_air_gauche]:.4f} cm")
+# print(f"eM+eI+eS/2    = {eM + eI + eS_m/2:.4f} cm  ← position attendue source")
 
-print(f"n = {n}")
-print(f"indices_sources_y = {indices_sources_y}")
-print(f"Hauteurs sources  = {[y[k] for k in indices_sources_y]}")
+# print(f"n = {n}")
+# print(f"indices_sources_y = {indices_sources_y}")
+# print(f"Hauteurs sources  = {[y[k] for k in indices_sources_y]}")
 
-if TEST_PAS_VARIABLE :
-    print(f"find_idx_y_asc(0.2) = {find_idx_y_asc(0.2)}")
-    print(f"find_idx_y_asc(1.0) = {find_idx_y_asc(1.0)}")
-    print(f"n - 1 - find_idx_y_asc(0.2) = {n - 1 - find_idx_y_asc(0.2)}")
+# if TEST_PAS_VARIABLE :
+#     print(f"find_idx_y_asc(0.2) = {find_idx_y_asc(0.2)}")
+#     print(f"find_idx_y_asc(1.0) = {find_idx_y_asc(1.0)}")
+#     print(f"n - 1 - find_idx_y_asc(0.2) = {n - 1 - find_idx_y_asc(0.2)}")
 
 # ===========================
 #endregion
@@ -321,11 +291,6 @@ if TEST_PAS_VARIABLE :
     dx = dy = 0.05
 N_Source = len(indices_sources_y)
 q_sources = phi * hM / N_Source / (dx * dy)
-
-print(f"dx = {dx:.6f} m")
-print(f"dy = {dy:.6f} m")
-print(f"dx*dy = {dx*dy:.2e} m²")
-print(f"q_sources = {q_sources:.2e} W/m³")
 
 print(f"Dimensions de la matrice :\n\tNombre de lignes = {n},\n\tNombre de colonnes = {m}\n\t\tDimension totale = {n} * {m} = {n * m}")
 
@@ -644,7 +609,7 @@ while precisionResultat >= precisionAAtteindre :
                 #endregion
         #endregion
 
-    else :
+    else : # Algorithme de Thomas non fonctionnel
         T_avant = T.copy()
         #region Test si l'on calcule les températures sur la ligne
         for i in range(n) :
@@ -1022,9 +987,9 @@ while precisionResultat >= precisionAAtteindre :
 
 
 if LANCER_UNE_SIMULATION :
-    np.save('T_result5.npy', T)
-    np.save('x_result5.npy', x)
-    np.save('y_result5.npy', y)
+    np.save('T_resultPasUniforme5.npy', T)
+    np.save('x_resultPasUniforme5.npy', x)
+    np.save('y_resultPasUniforme5.npy', y)
 
 #region Debug
 # ===== DEBUG =====
@@ -1061,7 +1026,6 @@ if LANCER_UNE_SIMULATION :
 # if TEST_PAS_VARIABLE :
 #     print(f"y[120] = {y[120]:.6f} m   (hauteur physique)")
 #     print(f"Sources y : {[y_asc[n-1-idx] for idx in [n-1-s for s in indices_sources_y]]}")
-#     # Plus simple :
 #     print(f"indices_sources_y = {indices_sources_y}")
 #     print(f"Hauteurs sources  = {[y[k] for k in indices_sources_y]}")
 #     print(f"j_source = {j_source}, x[j_source] = {x[j_source]:.6f} m")
@@ -1106,11 +1070,7 @@ if GRAPHIQUE_DE_TEMPERATURE :
 
 import matplotlib.patches as patches
 
-# ============================================================
-# POST-PROCESSING — robuste pour pas uniforme ET variable
-# ============================================================
-
-n, m = T.shape  # toujours recomputer depuis T chargé
+n, m = T.shape  # Permet de récupérer les données après le chargement de fichier.
 
 # --- Recompute tous les indices depuis les vrais x et y chargés ---
 def nearest_idx(arr, val):
@@ -1124,15 +1084,13 @@ j_air_gauche = nearest_idx(x, eM + eI + eS_m + k_m)
 j_air_droite = nearest_idx(x, eM + eI + eS_m + eB - k_m)
 j_mur_int    = nearest_idx(x, eM + eI + eS_m + eB)
 
-# y est décroissant dans les deux cas → on cherche par valeur physique
 indices_alv_bas_plot  = [nearest_idx(y, k * hB_m + hB_m - k_m) for k in range(int(hM / hB_m))]
 indices_alv_haut_plot = [nearest_idx(y, k * hB_m + k_m)        for k in range(int(hM / hB_m))]
 indices_sources_plot  = [nearest_idx(y, k * pasSources_m)       for k in range(1, int(round(hM / pasSources_m)))]
 
-# --- Gradient propre : on travaille en y croissant puis on retourne ---
-# np.gradient gère les pas non-uniformes nativement
-y_asc_g = y[::-1].copy()   # croissant
-T_asc   = np.flipud(T)     # T réorienté y croissant
+# Gradient 
+y_asc_g = y[::-1].copy()   
+T_asc   = np.flipud(T)     
 
 dT_dy_asc, dT_dx_asc = np.gradient(T_asc, y_asc_g, x)
 
@@ -1152,9 +1110,6 @@ flux_x_reel    = -K * dT_dx
 flux_y_reel    = -K * dT_dy
 intensite_reel = np.sqrt(flux_x_reel**2 + flux_y_reel**2)
 
-# ============================================================
-# HELPER : overlay géométrie (indépendant de l'orientation y)
-# ============================================================
 def overlay_geometrie(ax):
     # Couches matériaux
     couches = [
@@ -1193,10 +1148,6 @@ def overlay_geometrie(ax):
                 markeredgecolor='darkred', markeredgewidth=0.5,
                 zorder=5, alpha=0.9)
 
-
-# ============================================================
-# Échantillonnage PHYSIQUE des flèches (uniforme en espace réel)
-# ============================================================
 N_ARR_Y = 22
 N_ARR_X = 18
 
@@ -1233,8 +1184,6 @@ cb1.set_label('Température (K)', rotation=270, labelpad=15)
 cb1.ax.tick_params(labelsize=9)
 
 
-
-# Isothermes
 n_iso = 10
 iso_levels = np.linspace(T.min(), T.max(), n_iso + 2)[1:-1]
 ax1.contour(XX, YY, T,
@@ -1286,7 +1235,7 @@ plt.savefig('temperature_flux.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 # ============================================================
-# FIGURE 2 : Profils 1D utiles
+# FIGURE 2 : Profils 1D 
 # ============================================================
 fig2, axes = plt.subplots(1, 3, figsize=(16, 5))
 
@@ -1317,477 +1266,3 @@ axes[2].grid(True, alpha=0.4)
 plt.tight_layout()
 plt.savefig('profils_1D.png', dpi=150, bbox_inches='tight')
 plt.show()
-
-# import matplotlib.patches as patches
-
-# def overlay_geometrie(ax):
-#     x_debut = x[j_mur_ext]    # début de la zone visible (mur ext)
-#     x_fin   = x[j_mur_int]    # fin de la zone visible (mur int)
-
-#     # Couches avec transparence
-#     ax.add_patch(patches.Rectangle((x[j_mur_ext],    0), eI,   hM, facecolor='lightgray', alpha=0.15, edgecolor='none'))
-#     ax.add_patch(patches.Rectangle((x[j_isolant],    0), eS_m, hM, facecolor='beige',     alpha=0.20, edgecolor='none'))
-#     ax.add_patch(patches.Rectangle((x[j_enduit],     0), eB,   hM, facecolor='whitesmoke',alpha=0.15, edgecolor='none'))
-
-#     # Cavités d'air
-#     for k in range(int(hM / hB_m)):
-#         y_bas = k * hB_m + k_m
-#         h_air = hB_m - 2 * k_m
-#         if y_bas + h_air <= hM:
-#             ax.add_patch(patches.Rectangle(
-#                 (x[j_enduit] + k_m, y_bas),
-#                 eB - 2 * k_m, h_air,
-#                 facecolor='skyblue', alpha=0.25, edgecolor='none'
-#             ))
-
-#     # Sources de chaleur
-#     x_source = x[j_source]
-#     for k in range(1, int(round(hM / pasSources_m))):
-#         y_src = k * pasSources_m
-#         if y_src < hM:
-#             ax.plot(x_source, y_src, 'ro', markersize=4, alpha=0.6)
-
-#     # Interfaces verticales
-#     for xpos in [x[j_mur_ext], x[j_isolant], x[j_enduit], x[j_mur_int]]:
-#         ax.axvline(x=xpos, color='white', linewidth=0.8, linestyle='--', alpha=0.5)
-
-
-# # ============================================================
-# # Calcul du gradient et des flux
-# # ============================================================
-# n, m = T.shape       
-# j_bord_ext   = find_idx_x(0.0)
-# j_mur_ext    = find_idx_x(float(eM))
-# j_isolant    = find_idx_x(float(eM + eI))
-# j_source     = find_idx_x(float(eM + eI + eS_m / 2))
-# j_enduit     = find_idx_x(float(eM + eI + eS_m))
-# j_air_gauche = find_idx_x(float(eM + eI + eS_m + k_m))
-# j_air_droite = find_idx_x(float(eM + eI + eS_m + eB - k_m))
-# j_mur_int    = find_idx_x(float(eM + eI + eS_m + eB))
-
-# T_flipped = np.flipud(T)
-# y_croissant = y[::-1]
-
-# dT_dy_flipped, dT_dx_flipped = np.gradient(T_flipped, y_croissant, x)
-
-# dT_dx = np.zeros_like(T)
-
-# # Points internes
-# for i in range(n):
-#     for j in range(1, m-1):
-#         dxm = x[j]   - x[j-1]
-#         dxp = x[j+1] - x[j]
-#         dT_dx[i, j] = (
-#             -dxp / (dxm*(dxm+dxp)) * T[i, j-1]
-#             + (dxp-dxm) / (dxm*dxp) * T[i, j]
-#             + dxm / (dxp*(dxm+dxp)) * T[i, j+1]
-#         )
-
-# # Bords (dérivée unilatérale premier ordre)
-# dT_dx[:, 0]    = (T[:, 1]  - T[:, 0])    / (x[1]  - x[0])
-# dT_dx[:, m-1]  = (T[:, m-1] - T[:, m-2]) / (x[m-1] - x[m-2])
-
-# dT_dy = np.zeros_like(T)
-
-# for i in range(1, n-1):
-#     for j in range(m):
-#         dym = y[i]   - y[i-1]
-#         dyp = y[i+1] - y[i]
-#         dT_dy[i, j] = (
-#             -dyp / (dym*(dym+dyp)) * T[i-1, j]
-#             + (dyp-dym) / (dym*dyp) * T[i, j]
-#             + dym / (dyp*(dym+dyp)) * T[i+1, j]
-#         )
-
-# dT_dy[0, :]    = (T[1, :]    - T[0, :])    / (y[1]  - y[0])
-# dT_dy[n-1, :]  = (T[n-1, :]  - T[n-2, :])  / (y[n-1] - y[n-2])
-
-# flux_x = -dT_dx
-# flux_y = -dT_dy
-# intensite = np.sqrt(flux_x**2 + flux_y**2)
-
-# if TEST_PAS_VARIABLE :
-#     _alv_bas_asc  = [find_idx_y_asc(float(k * hB_m + k_m))        for k in range(int(hM / hB_m))]
-#     _alv_haut_asc = [find_idx_y_asc(float(k * hB_m + hB_m - k_m)) for k in range(int(hM / hB_m))]
-#     indices_alv_bas  = [n - 1 - idx for idx in _alv_haut_asc]
-#     indices_alv_haut = [n - 1 - idx for idx in _alv_bas_asc]
-
-# # Recalcul flux réel
-# K = np.full((n, m), lbdM)                     
-# K[:, j_mur_ext:j_isolant]    = lbdI           
-# K[:, j_isolant:j_enduit]     = lbdE                
-# K[:, j_enduit:j_mur_int]     = lbdB                 
-# for idx_b, idx_h in zip(indices_alv_bas, indices_alv_haut):
-#     K[idx_b:idx_h, j_air_gauche:j_air_droite] = lbdA  # alvéoles d'air
-# print("K.shape    =", K.shape)
-# print("dT_dx.shape =", dT_dx.shape)
-
-# flux_x_reel = -K * dT_dx
-# flux_y_reel = -K * dT_dy
-# intensite_reel = np.sqrt(flux_x_reel**2 + flux_y_reel**2)
-
-# # ============================================================
-# # Figure 1 : Champ de température + flux normalisé
-# # ============================================================
-# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
-
-# # --- ax1 : Champ de température ---
-# XX, YY = np.meshgrid(x, y)
-# im = ax1.pcolormesh(XX, YY, T, cmap='hot', shading='auto')
-# plt.colorbar(im, ax=ax1, label='Température (K)')
-# ax1.set_title('Champs des températures', fontsize=13, fontweight='bold')
-# ax1.set_xlabel('Épaisseur (m)')
-# ax1.set_ylabel('Hauteur (m)')
-# ax1.set_xlim(x[0], x[-1])
-# ax1.set_ylim(y[0], y[-1])
-
-# for xpos in [x[j_mur_ext], x[j_isolant], x[j_enduit], x[j_air_gauche], x[j_air_droite], x[j_mur_int]]:
-#     ax1.axvline(x=xpos, color='white', linewidth=0.8, linestyle='--', alpha=0.6)
-
-# def format_coord_T(xc, yc):
-#     j = np.argmin(np.abs(x - xc))
-#     i = np.argmin(np.abs(y - yc))
-#     if 0 <= i < n and 0 <= j < m:
-#         return f'x={xc:.3f} m  y={yc:.3f} m  →  T = {T[i,j]:.2f} K  ({T[i,j]-273.15:.2f} °C)'
-#     return f'x={xc:.3f} m  y={yc:.3f} m'
-# ax1.format_coord = format_coord_T
-
-# # --- ax2 : Flux normalisé (direction) ---
-# pas_fleche_i = max(1, n // 18)
-# I_idx = np.arange(0, n, pas_fleche_i)
-# J_idx = np.arange(j_mur_ext, j_mur_int, max(1, (j_mur_int - j_mur_ext) // 18))
-# II, JJ = np.meshgrid(I_idx, J_idx, indexing='ij')
-
-# X_pos   = x[JJ]
-# Y_pos   = y[II]
-# FX_arr  = flux_x_reel[II, JJ]
-# FY_arr  = flux_y_reel[II, JJ]
-# INT_arr = intensite_reel[II, JJ]
-
-
-# norme = np.sqrt(FX_arr**2 + FY_arr**2)
-# norme[norme == 0] = 1
-# FX_norm = FX_arr / norme
-# FY_norm = FY_arr / norme
-
-# sc = ax2.quiver(
-#     X_pos, Y_pos, FX_norm, FY_norm, INT_arr,
-#     cmap='plasma', angles='xy', scale=40, width=0.003, headwidth=4, headlength=5
-# )
-# #plt.colorbar(sc, ax=ax2, label=r'$|\vec{q}|$ (W/m²)')
-# ax2.set_xlim(0, x[j_mur_int])
-# ax2.set_ylim(y[0], y[-1])
-# ax2.set_title('Flux thermique (direction normalisée)', fontsize=13, fontweight='bold')
-# ax2.set_xlabel('Épaisseur (m)')
-# ax2.set_ylabel('Hauteur (m)')
-# ax2.set_aspect('auto')
-
-# def format_coord_flux(xc, yc):
-#     j = np.argmin(np.abs(x - xc))
-#     i = np.argmin(np.abs(y - yc))
-#     if 0 <= i < n and 0 <= j < m:
-#         return f'x={xc:.3f} m  y={yc:.3f} m  →  |∇T| = {intensite[i,j]:.1f} K/m  |  q = {intensite_reel[i,j]:.1f} W/m²'
-#     return f'x={xc:.3f} m  y={yc:.3f} m'
-# ax2.format_coord = format_coord_flux
-
-# overlay_geometrie(ax1)
-# overlay_geometrie(ax2)
-# plt.tight_layout()
-# plt.show()
-
-# # ============================================================
-# # Figure 2 : Flux réel proportionnel (W/m²)
-# # ============================================================
-# fig2, ax3 = plt.subplots(figsize=(9, 7))
-
-# FX_reel_arr  = flux_x_reel[II, JJ]
-# FY_reel_arr  = flux_y_reel[II, JJ]
-# INT_reel_arr = intensite_reel[II, JJ]
-
-# norme_reel = np.sqrt(FX_reel_arr**2 + FY_reel_arr**2)
-# norme_reel[norme_reel == 0] = 1
-
-# INT_reel_norm = INT_reel_arr / np.percentile(INT_reel_arr[INT_reel_arr > 0], 95)
-# INT_reel_norm = np.clip(INT_reel_norm, 0.0, 1.0)
-
-# FX_plot = (FX_reel_arr / norme_reel) * INT_reel_norm
-# FY_plot = (FY_reel_arr / norme_reel) * INT_reel_norm
-
-# sc2 = ax3.quiver(
-#     X_pos, Y_pos, FX_plot, FY_plot, INT_reel_arr,
-#     cmap='plasma', angles='xy', scale=25, width=0.003, headwidth=4, headlength=5
-# )
-# plt.colorbar(sc2, ax=ax3, label='Flux thermique (W/m²)')
-# ax3.set_xlim(0, x[j_mur_int])
-# ax3.set_ylim(y[0], y[-1])
-# ax3.set_title('Flux thermique réel (longueur proportionnelle)', fontsize=13, fontweight='bold')
-# ax3.set_xlabel('Épaisseur (m)')
-# ax3.set_ylabel('Hauteur (m)')
-# ax3.set_aspect('auto')
-
-# def format_coord_flux2(xc, yc):
-#     j = np.argmin(np.abs(x - xc))
-#     i = np.argmin(np.abs(y - yc))
-#     if 0 <= i < n and 0 <= j < m:
-#         return f'x={xc:.3f} m  y={yc:.3f} m  →  q = {intensite_reel[i,j]:.2f} W/m²  qx={flux_x_reel[i,j]:.2f}  qy={flux_y_reel[i,j]:.2f}'
-#     return f'x={xc:.3f} m  y={yc:.3f} m'
-# ax3.format_coord = format_coord_flux2
-
-# overlay_geometrie(ax3)
-# plt.tight_layout()
-# plt.show()
-
-# print(f"Maillage = {n*m}")
-
-# print(f"lbdA = {lbdA}")   # doit être ~0.025 W/m·K pour l'air
-# print(f"lbdB = {lbdB}")   # béton intérieur, doit être ~0.5-1 W/m·K
-# print("indices_alv_bas  =", indices_alv_bas)
-# print("indices_alv_haut =", indices_alv_haut)
-# print("j_air_gauche =", j_air_gauche, "→ x =", x[j_air_gauche])
-# print("j_air_droite =", j_air_droite, "→ x =", x[j_air_droite])
-
-
-#Plot de vérif géométrique
-SHOW_GRAPH_GEOMETRY = False
-if SHOW_GRAPH_GEOMETRY :
-
-    import matplotlib.patches as patches
-
-    fig, ax = plt.subplots(figsize=(8, 10))
-
-    # Dimensions totales
-    x_tot = eM + eI + eS_m + eB
-    y_tot = hM
-
-    # Couches principales
-    ax.add_patch(patches.Rectangle((0, 0), eM, hM, facecolor='lightgray', edgecolor='black', label='Mur extérieur'))
-    ax.add_patch(patches.Rectangle((eM, 0), eI, hM, facecolor='beige', edgecolor='black', label='Isolant'))
-    ax.add_patch(patches.Rectangle((eM + eI, 0), eS_m, hM, facecolor='mistyrose', edgecolor='black', label='Enduit'))
-    ax.add_patch(patches.Rectangle((eM + eI + eS_m, 0), eB, hM, facecolor='whitesmoke', edgecolor='black', label='Mur intérieur'))
-
-    # Cavités d'air
-    for k in range(int(hM / hB_m)):
-        y_bas = k * hB_m + k_m
-        hauteur_air = hB_m - 2 * k_m
-        if y_bas + hauteur_air <= hM:
-            ax.add_patch(
-                patches.Rectangle(
-                    (eM + eI + eS_m + k_m, y_bas),
-                    eB - 2 * k_m,
-                    hauteur_air,
-                    facecolor='skyblue',
-                    edgecolor='black'
-                )
-            )
-
-    # Sources de chaleur dans l’enduit
-    x_source = eM + eI + eS_m / 2
-    for k in range(1, int(round(hM / pasSources_m))):
-        y_source = k * pasSources_m
-        if y_source < hM:
-            ax.plot(x_source, y_source, 'ro', markersize=6)
-
-    # Conditions limites
-    ax.text(-0.03, hM/2, f"Te = {TempE-273.15:.0f}°C\nhe = {hE}", ha='right', va='center', fontsize=10)
-    ax.text(x_tot + 0.02, hM/2, f"Ti = {TempI-273.15:.0f}°C\nhi = {hI}", ha='left', va='center', fontsize=10)
-
-    # Interfaces verticales
-    for xpos in [0, eM, eM + eI, eM + eI + eS_m, x_tot]:
-        ax.axvline(x=xpos, color='k', linewidth=0.8)
-
-    # Mise en forme
-    ax.set_xlim(-0.05, x_tot + 0.08)
-    ax.set_ylim(0, hM)
-    ax.set_xlabel("x [m]")
-    ax.set_ylabel("y [m]")
-    ax.set_title("Vérification visuelle de la géométrie et des conditions du projet")
-    ax.set_aspect('equal')
-    ax.grid(True, linestyle='--', alpha=0.3)
-
-    plt.tight_layout()
-    plt.show()
-
-
-    from matplotlib.colors import ListedColormap
-
-    zone = np.zeros((n, m), dtype=int)
-
-    jsource_debut = np.searchsorted(x, float(eM + eI))
-    jsource_fin   = np.searchsorted(x, float(eM + eI + eS_m))
-
-    for i in range(n):
-        dans_cavite = is_cavite[i]
-        idx_alv = idx_alv_par_ligne[i] if dans_cavite else None
-
-        for j in range(m):
-
-            # Sources
-            if i in indices_sources_y and jsource_debut <= j < jsource_fin:
-                zone[i, j] = 5
-
-            # Cavité d'air
-            elif dans_cavite and j_air_gauche <= j <= j_air_droite:
-                zone[i, j] = 7
-
-            # Mur extérieur
-            elif j < j_mur_ext:
-                zone[i, j] = 0
-
-            # Interface mur ext / isolant
-            elif j == j_mur_ext:
-                zone[i, j] = 1
-
-            # Isolant
-            elif j < j_isolant:
-                zone[i, j] = 2
-
-            # Interface isolant / enduit
-            elif j == j_isolant:
-                zone[i, j] = 3
-
-            # Enduit
-            elif j < j_enduit:
-                zone[i, j] = 4
-
-            # Interface enduit / mur intérieur
-            elif j == j_enduit:
-                zone[i, j] = 8
-
-            # Mur intérieur plein
-            elif j < j_mur_int:
-                zone[i, j] = 6
-
-            # Bord intérieur
-            elif j == j_mur_int:
-                zone[i, j] = 11
-
-    from matplotlib.colors import ListedColormap
-    from matplotlib.patches import Patch
-
-    # Reprend tes paramètres déjà définis :
-    # eM, eI, eS_m, eB, hM, hB_m, k_m, pasSources_m, dx, dy
-
-    x = np.round(np.arange(0, eM + eI + eS_m + eB + dx, dx), 10)
-    y = np.round(np.arange(0, hM + dy, dy), 10)
-    m = len(x)
-    n = len(y)
-
-    j_mur_ext    = np.searchsorted(x, eM)
-    j_isolant    = np.searchsorted(x, eM + eI)
-    j_source     = np.searchsorted(x, eM + eI + eS_m / 2)
-    j_enduit     = np.searchsorted(x, eM + eI + eS_m)
-    j_air_gauche = np.searchsorted(x, eM + eI + eS_m + k_m)
-    j_air_droite = np.searchsorted(x, eM + eI + eS_m + eB - k_m)
-    j_mur_int    = np.searchsorted(x, eM + eI + eS_m + eB)
-
-    def to_idx_y(val):
-        return int(round(val / dy))
-
-    indices_sources_y = [
-        min(to_idx_y(k * pasSources_m), n - 1)
-        for k in range(1, int(round(hM / pasSources_m)))
-    ]
-
-    indices_alv_bas = [
-        min(to_idx_y(k * hB_m + k_m), n - 1)
-        for k in range(int(hM / hB_m))
-    ]
-
-    indices_alv_haut = [
-        min(to_idx_y(k * hB_m + hB_m - k_m), n - 1)
-        for k in range(int(hM / hB_m))
-    ]
-
-    is_cavite = np.zeros(n, dtype=bool)
-    for b, h in zip(indices_alv_bas, indices_alv_haut):
-        is_cavite[b:h+1] = True
-
-    # Codes :
-    # 0 mur ext
-    # 1 interface M/I
-    # 2 isolant
-    # 3 interface I/E
-    # 4 enduit
-    # 5 source
-    # 6 mur intérieur
-    # 7 air
-    # 8 interface E/B
-    # 9 bord haut
-    # 10 bord bas
-    # 11 bord gauche
-    # 12 bord droit
-
-    zone = np.zeros((n, m), dtype=int)
-
-    for i in range(n):
-        dans_cavite = is_cavite[i]
-
-        for j in range(m):
-            if j < j_mur_ext:
-                z = 0
-            elif j == j_mur_ext:
-                z = 1
-            elif j < j_isolant:
-                z = 2
-            elif j == j_isolant:
-                z = 3
-            elif j < j_enduit:
-                z = 4
-            elif j == j_enduit:
-                z = 8
-            elif j < j_mur_int:
-                if dans_cavite and j_air_gauche <= j <= j_air_droite:
-                    z = 7
-                else:
-                    z = 6
-            else:
-                z = 12
-
-            # Source : priorité visuelle
-            if (i in indices_sources_y) and (j == j_source):
-                z = 5
-
-            zone[i, j] = z
-
-    # Bords
-    zone[0, :-1] = 9
-    zone[-1, :-1] = 10
-    zone[:, 0] = 11
-    zone[:, -1] = 12
-
-    cmap = ListedColormap([
-        '#bfbfbf',  # 0 mur ext
-        '#555555',  # 1 int M/I
-        '#ecea99',  # 2 isolant
-        '#dba61c',  # 3 int I/E
-        '#efd8d2',  # 4 enduit
-        '#ff2d2d',  # 5 source
-        '#efefef',  # 6 mur int
-        '#8ecae6',  # 7 air
-        '#8a0f8f',  # 8 int E/B
-        '#2ca02c',  # 9 bord haut
-        '#1b8f1b',  # 10 bord bas
-        '#2b6cff',  # 11 bord gauche
-        '#2b6cff',  # 12 bord droit
-    ])
-
-    plt.figure(figsize=(8, 10))
-    plt.imshow(zone, origin='lower', aspect='auto', cmap=cmap, vmin=0, vmax=12, interpolation='nearest')
-    plt.xlabel("j")
-    plt.ylabel("i")
-    plt.title("Carte logique reconstruite depuis les conditions Python")
-
-    legend_elements = [
-        Patch(facecolor='#bfbfbf', label='Mur extérieur'),
-        Patch(facecolor='#555555', label='Interface M/I'),
-        Patch(facecolor='#ecea99', label='Isolant'),
-        Patch(facecolor='#dba61c', label='Interface I/E'),
-        Patch(facecolor='#efd8d2', label='Enduit'),
-        Patch(facecolor='#ff2d2d', label='Source'),
-        Patch(facecolor='#efefef', label='Mur intérieur'),
-        Patch(facecolor='#8ecae6', label='Air'),
-        Patch(facecolor='#8a0f8f', label='Interface E/B'),
-    ]
-    plt.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0.)
-    plt.tight_layout()
-    plt.show()
