@@ -17,9 +17,14 @@ t0 = time.time()
 
 # ===== CHOIX =====
 USE_THOMAS = False  # False = Gauss-Seidel, True = Thomas 
-TEST_PAS_VARIABLE = False
+TEST_PAS_VARIABLE = True
 LANCER_UNE_SIMULATION = False
 pasMatriceCst = 0.005
+
+#region Precision
+precisionResultat = 1
+precisionAAtteindre = 1e-5
+#endregion
 
 #region Dimension de la surface
 eM = 0.2 # m
@@ -35,10 +40,7 @@ k_m = 0.015
 pasSources_m = 0.2
 #endregion
 
-#region Precision
-precisionResultat = 1
-precisionAAtteindre = 1e-4
-#endregion
+
 
 #region Compteurs
 cptIteration = 0
@@ -316,7 +318,7 @@ for k in range(len(indices_alv_bas)):
 
 
 if TEST_PAS_VARIABLE : 
-    dx = dx = 0.05
+    dx = dy = 0.05
 N_Source = len(indices_sources_y)
 q_sources = phi * hM / N_Source / (dx * dy)
 
@@ -1020,9 +1022,9 @@ if not LANCER_UNE_SIMULATION :
 
 
 
-np.save('T_result.npy', T)
-np.save('x_result.npy', x)
-np.save('y_result.npy', y)
+np.save('T_result5.npy', T)
+np.save('x_result5.npy', x)
+np.save('y_result5.npy', y)
 print("✅ T sauvegardé !")
 
 #region Debug
@@ -1139,13 +1141,52 @@ def overlay_geometrie(ax):
 # ============================================================
 # Calcul du gradient et des flux
 # ============================================================
+n, m = T.shape       
+j_bord_ext   = find_idx_x(0.0)
+j_mur_ext    = find_idx_x(float(eM))
+j_isolant    = find_idx_x(float(eM + eI))
+j_source     = find_idx_x(float(eM + eI + eS_m / 2))
+j_enduit     = find_idx_x(float(eM + eI + eS_m))
+j_air_gauche = find_idx_x(float(eM + eI + eS_m + k_m))
+j_air_droite = find_idx_x(float(eM + eI + eS_m + eB - k_m))
+j_mur_int    = find_idx_x(float(eM + eI + eS_m + eB))
+
 T_flipped = np.flipud(T)
 y_croissant = y[::-1]
 
 dT_dy_flipped, dT_dx_flipped = np.gradient(T_flipped, y_croissant, x)
 
-dT_dx = np.flipud(dT_dx_flipped)
-dT_dy = np.flipud(dT_dy_flipped)
+dT_dx = np.zeros_like(T)
+
+# Points internes
+for i in range(n):
+    for j in range(1, m-1):
+        dxm = x[j]   - x[j-1]
+        dxp = x[j+1] - x[j]
+        dT_dx[i, j] = (
+            -dxp / (dxm*(dxm+dxp)) * T[i, j-1]
+            + (dxp-dxm) / (dxm*dxp) * T[i, j]
+            + dxm / (dxp*(dxm+dxp)) * T[i, j+1]
+        )
+
+# Bords (dérivée unilatérale premier ordre)
+dT_dx[:, 0]    = (T[:, 1]  - T[:, 0])    / (x[1]  - x[0])
+dT_dx[:, m-1]  = (T[:, m-1] - T[:, m-2]) / (x[m-1] - x[m-2])
+
+dT_dy = np.zeros_like(T)
+
+for i in range(1, n-1):
+    for j in range(m):
+        dym = y[i]   - y[i-1]
+        dyp = y[i+1] - y[i]
+        dT_dy[i, j] = (
+            -dyp / (dym*(dym+dyp)) * T[i-1, j]
+            + (dyp-dym) / (dym*dyp) * T[i, j]
+            + dym / (dyp*(dym+dyp)) * T[i+1, j]
+        )
+
+dT_dy[0, :]    = (T[1, :]    - T[0, :])    / (y[1]  - y[0])
+dT_dy[n-1, :]  = (T[n-1, :]  - T[n-2, :])  / (y[n-1] - y[n-2])
 
 flux_x = -dT_dx
 flux_y = -dT_dy
@@ -1158,9 +1199,11 @@ K[:, j_isolant:j_enduit]     = lbdE
 K[:, j_enduit:j_mur_int]     = lbdB                 
 for idx_b, idx_h in zip(indices_alv_bas, indices_alv_haut):
     K[idx_b:idx_h, j_air_gauche:j_air_droite] = lbdA  # alvéoles d'air
+print("K.shape    =", K.shape)
+print("dT_dx.shape =", dT_dx.shape)
 
-flux_x_reel    = -K * dT_dx
-flux_y_reel    = -K * dT_dy
+flux_x_reel = -K * dT_dx
+flux_y_reel = -K * dT_dy
 intensite_reel = np.sqrt(flux_x_reel**2 + flux_y_reel**2)
 
 # ============================================================
@@ -1172,7 +1215,7 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
 XX, YY = np.meshgrid(x, y)
 im = ax1.pcolormesh(XX, YY, T, cmap='hot', shading='auto')
 plt.colorbar(im, ax=ax1, label='Température (K)')
-ax1.set_title('Champ de température', fontsize=13, fontweight='bold')
+ax1.set_title('Champs des températures', fontsize=13, fontweight='bold')
 ax1.set_xlabel('Épaisseur (m)')
 ax1.set_ylabel('Hauteur (m)')
 ax1.set_xlim(x[0], x[-1])
@@ -1272,6 +1315,8 @@ ax3.format_coord = format_coord_flux2
 overlay_geometrie(ax3)
 plt.tight_layout()
 plt.show()
+
+print(f"Maillage = {n*m}")
 
 #Plot de vérif géométrique
 SHOW_GRAPH_GEOMETRY = False
